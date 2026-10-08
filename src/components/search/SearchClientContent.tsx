@@ -29,16 +29,18 @@ export default function SearchClientContent({
   const searchParams = useSearchParams();
   const {
     isLoading,
-    error,
+    failure,
     retry,
     currentPage,
     setCurrentPage,
     viewMode,
     setViewMode,
     totalPages,
+    depthLimited,
     currentResults,
     category,
     pageSize,
+    pageSizeOptions,
     setPageSize,
   } = useSearchResults(initialData);
 
@@ -78,13 +80,21 @@ export default function SearchClientContent({
                 <SearchResultsView
                   viewMode={viewMode}
                   results={currentResults}
-                  error={error}
+                  failure={failure}
                   onRetry={retry}
                 />
               </>
             )}
 
+            {depthLimited && !failure && !isLoading && (
+              <p className="mt-6 text-center text-sm text-gray-500">
+                Showing the first {totalPages * pageSize} results. Refine your
+                filters to see more.
+              </p>
+            )}
+
             <Pagination
+              pageSizeOptions={pageSizeOptions}
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={handlePageChange}

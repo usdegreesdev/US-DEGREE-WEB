@@ -18,6 +18,7 @@ import { useState, useEffect } from "react";
 import { authedFetch } from "@/lib/auth/api";
 import { StudentProfile } from "../../types/profile";
 import { SearchResult } from "../../types/search-details";
+import { extractSearchRows } from "../../lib/search/searchParams";
 import { EarningsFillMethod } from "@/types/earningsMethod";
 
 /** A single matched college, ready to render. Rates are percentages (0–100). */
@@ -148,43 +149,33 @@ export function useCollegeMatches(profile: StudentProfile): {
       setLoading(true);
       try {
         // 1. Query /search once per preferred major (or once with no title when
-        //    only states are set). We send the first state to narrow the result
-        //    set server-side, then filter client-side for the rest.
+        //    only states are set). We send the preferred states to narrow the result
+        //    set server-side.
         const queries = programs.length > 0 ? programs : [""];
         const resultArrays = await Promise.all(
           queries.map(async (major) => {
             const params = new URLSearchParams();
             if (major) params.set("title", major);
-            if (states.length > 0) params.set("state", states[0]);
+            if (states.length > 0) params.set("state", states.join(","));
             if (degreeLevel) params.set("credential_title", degreeLevel);
             try {
               const res = await authedFetch(`/search?${params.toString()}`);
               if (!res.ok) return [];
-              const data: unknown = await res.json();
-              return Array.isArray(data) ? (data as SearchResult[]) : [];
+              return extractSearchRows<SearchResult>(await res.json());
             } catch {
               return [];
             }
           }),
         );
 
-        // Shared row filter: restrict to preferred states and (when set) the
-        // preferred college type. Applied per major so each major's quota is
-        // filled from its own filtered pool.
-        const wantedStates =
-          states.length > 0
-            ? new Set(states.map((s) => s.toUpperCase()))
-            : null;
+        // Shared row filter. Preferred states are applied by the API (the
+        // comma-separated `state` param above); here only the college type
+        // is narrowed. Applied per major so each major's quota is filled from
+        // its own filtered pool.
         const wantPrivate = collegeType
           ? collegeType.toLowerCase() === "private"
           : null;
         const passesFilters = (r: SearchResult): boolean => {
-          if (
-            wantedStates &&
-            !(r.state && wantedStates.has(String(r.state).toUpperCase()))
-          ) {
-            return false;
-          }
           if (wantPrivate !== null) {
             const isPrivate = String(r.college_type ?? r.school_type ?? "")
               .toLowerCase()

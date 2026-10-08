@@ -1,32 +1,32 @@
 import type { ReadonlyURLSearchParams } from "next/navigation";
 
 import { CATEGORY_KEYWORDS } from "@/constants/searchCategories";
+import { pickSearchParams } from "@/lib/search/searchParams";
 
 // Choices offered by the "results per page" control. The user's pick is
 // stored in the URL (`per_page`) so it survives pagination/filter changes
 // and back/forward navigation, overriding the list/grid view default.
-export const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+export const PAGE_SIZE_OPTIONS = [10, 20, 25, 50] as const;
 
 interface SearchRequest {
   requestParams: URLSearchParams;
-  selectedCredentials: string[];
-  selectedStates: string[];
 }
 
 // Translate the page's URL search params into the query sent to the API.
-// School type and category are stripped (filtered client-side), and for
-// multi-value credential/state selections only the API-narrowing first value
-// is kept so a broad set is returned, then widened via client-side filtering.
+// Only params the API accepts are copied (see searchParams.ts) — UI-only
+// params such as school_type, category, per_page and view never leave the
+// browser (school_type and category are filtered client-side). Multi-value
+// credential_title / state selections go to the API as comma-separated lists
+// (max 10 each), so the server narrows and paginates them.
 export const buildSearchRequest = (
   searchParams: ReadonlyURLSearchParams,
   category: string,
   page?: number,
   limit?: number,
 ): SearchRequest => {
-  const requestParams = new URLSearchParams(searchParams.toString());
-
-  requestParams.delete("school_type");
-  requestParams.delete("category");
+  const requestParams = pickSearchParams(
+    new URLSearchParams(searchParams.toString()),
+  );
 
   if (page != null) {
     requestParams.set("page", String(page));
@@ -45,17 +45,5 @@ export const buildSearchRequest = (
     }
   }
 
-  const credentialRaw = searchParams.get("credential_title") || "";
-  const stateRaw = searchParams.get("state") || "";
-  const selectedCredentials = credentialRaw.split(",").filter(Boolean);
-  const selectedStates = stateRaw.split(",").filter(Boolean);
-
-  if (selectedCredentials.length > 1) {
-    requestParams.delete("credential_title");
-  }
-  if (selectedStates.length > 1) {
-    requestParams.delete("state");
-  }
-
-  return { requestParams, selectedCredentials, selectedStates };
+  return { requestParams };
 };

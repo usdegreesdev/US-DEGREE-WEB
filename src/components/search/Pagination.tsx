@@ -8,6 +8,8 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   pageSize: number;
   onPageSizeChange: (size: number) => void;
+  /** Sizes offered; defaults to all. Anonymous visitors get fewer. */
+  pageSizeOptions?: readonly number[];
 }
 
 export default function Pagination({
@@ -16,6 +18,7 @@ export default function Pagination({
   onPageChange,
   pageSize,
   onPageSizeChange,
+  pageSizeOptions = PAGE_SIZE_OPTIONS,
 }: PaginationProps) {
   const pageSizePicker = (
     <label className="flex items-center gap-2 text-xs font-bold text-gray-500">
@@ -25,7 +28,7 @@ export default function Pagination({
         onChange={(e) => onPageSizeChange(Number(e.target.value))}
         className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        {PAGE_SIZE_OPTIONS.map((size) => (
+        {pageSizeOptions.map((size) => (
           <option key={size} value={size}>
             {size}
           </option>

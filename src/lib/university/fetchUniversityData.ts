@@ -1,4 +1,7 @@
+import { headers } from "next/headers";
+
 import { getBackendBaseUrl } from "@/lib/env";
+import { clientIpHeaders } from "@/lib/clientIp";
 import { TuitionData } from "@/types/university/TuitionData";
 import { AthleticsData } from "@/types/university/AthleticsData";
 import { CampusData } from "@/types/university/CampusStudentsTab";
@@ -16,7 +19,10 @@ async function fetchJson<T>(
   errorContext: string,
 ): Promise<T | null> {
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: clientIpHeaders(await headers()),
+    });
     if (res.ok) {
       return (await res.json()) as T;
     }

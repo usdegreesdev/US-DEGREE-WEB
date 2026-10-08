@@ -45,51 +45,41 @@ describe("buildSearchRequest", () => {
   });
 
   describe("multi-value selections", () => {
-    // A single value is something the API can narrow on, so it is kept. Two or
-    // more must be dropped so the API returns the union, which the client then
-    // filters — otherwise only the first value's results would ever come back.
-    it("keeps a single credential on the request", () => {
-      const { requestParams, selectedCredentials } = buildSearchRequest(
-        sp("credential_title=Bachelor%27s%20Degree"),
+    // The API narrows and paginates multi-value selections itself, so they are
+    // sent as comma-separated lists rather than filtered client-side.
+    it("sends credentials and states as comma-separated lists", () => {
+      const { requestParams } = buildSearchRequest(
+        sp("credential_title=A,B&state=CA,NY,TX"),
         "",
       );
-      expect(requestParams.get("credential_title")).toBe("Bachelor's Degree");
-      expect(selectedCredentials).toEqual(["Bachelor's Degree"]);
-    });
-
-    it("drops credential_title once more than one is selected", () => {
-      const { requestParams, selectedCredentials } = buildSearchRequest(
-        sp("credential_title=A,B"),
-        "",
-      );
-      expect(requestParams.has("credential_title")).toBe(false);
-      expect(selectedCredentials).toEqual(["A", "B"]);
-    });
-
-    it("keeps a single state but drops multiple", () => {
-      expect(buildSearchRequest(sp("state=CA"), "").requestParams.get("state")).toBe("CA");
-      expect(buildSearchRequest(sp("state=CA,NY"), "").requestParams.has("state")).toBe(false);
-    });
-
-    it("reports both selections back to the caller for client-side filtering", () => {
-      const { selectedStates, selectedCredentials } = buildSearchRequest(
-        sp("state=CA,NY,TX&credential_title=A,B"),
-        "",
-      );
-      expect(selectedStates).toEqual(["CA", "NY", "TX"]);
-      expect(selectedCredentials).toEqual(["A", "B"]);
+      expect(requestParams.get("credential_title")).toBe("A,B");
+      expect(requestParams.get("state")).toBe("CA,NY,TX");
     });
 
     it("ignores empty segments from trailing commas", () => {
-      const { selectedStates } = buildSearchRequest(sp("state=CA,,NY,"), "");
-      expect(selectedStates).toEqual(["CA", "NY"]);
+      const { requestParams } = buildSearchRequest(sp("state=CA,,NY,"), "");
+      expect(requestParams.get("state")).toBe("CA,NY");
     });
 
-    it("returns empty arrays when nothing is selected", () => {
-      const { selectedStates, selectedCredentials } = buildSearchRequest(sp(""), "");
-      expect(selectedStates).toEqual([]);
-      expect(selectedCredentials).toEqual([]);
+    it("caps each list at the backend's 10 values", () => {
+      const states = Array.from({ length: 12 }, (_, i) => `S${i}`).join(",");
+      const { requestParams } = buildSearchRequest(sp(`state=${states}`), "");
+      expect(requestParams.get("state")?.split(",")).toHaveLength(10);
     });
+
+    it("omits the params when nothing is selected", () => {
+      const { requestParams } = buildSearchRequest(sp(""), "");
+      expect(requestParams.has("state")).toBe(false);
+      expect(requestParams.has("credential_title")).toBe(false);
+    });
+  });
+
+  it("drops UI-only params such as per_page and view", () => {
+    const { requestParams } = buildSearchRequest(
+      sp("per_page=50&view=grid&title=x"),
+      "",
+    );
+    expect(requestParams.toString()).toBe("title=x");
   });
 
   it("does not mutate the caller's search params", () => {

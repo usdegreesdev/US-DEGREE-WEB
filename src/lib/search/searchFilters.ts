@@ -22,8 +22,6 @@ export const matchesCollegeType = (
 
 interface SearchFilterArgs {
   schoolType: string | null;
-  selectedCredentials: string[];
-  selectedStates: string[];
   categoryKeywords: string[] | null;
 }
 
@@ -31,33 +29,17 @@ const textMatchesKeyword = (text: string | null | undefined, kw: string) =>
   Boolean(text && text.toLowerCase().includes(kw.toLowerCase()));
 
 // Client-side narrowing of the broad result set returned by the API for
-// filters the API can't apply itself (school type, multi-value credential /
-// state selections, and category keyword matching).
+// filters the API can't apply itself (school type and category keyword
+// matching). Credential and state selections are applied by the API.
 export const filterSearchResults = (
   data: SearchResult[],
-  { schoolType, selectedCredentials, selectedStates, categoryKeywords }: SearchFilterArgs,
+  { schoolType, categoryKeywords }: SearchFilterArgs,
 ): SearchResult[] => {
   let filteredData = data;
 
   if (schoolType) {
     filteredData = filteredData.filter((item) =>
       matchesCollegeType(item, schoolType),
-    );
-  }
-
-  if (selectedCredentials.length > 1) {
-    filteredData = filteredData.filter((item) =>
-      selectedCredentials.some(
-        (cred) => item.credential_title?.toLowerCase() === cred.toLowerCase(),
-      ),
-    );
-  }
-
-  if (selectedStates.length > 1) {
-    filteredData = filteredData.filter((item) =>
-      selectedStates.some(
-        (st) => item.state?.toLowerCase() === st.toLowerCase(),
-      ),
     );
   }
 

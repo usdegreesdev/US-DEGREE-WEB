@@ -3,14 +3,25 @@
 import ResultCard from "./ResultCard";
 import TileCard from "./TileCard";
 import { mapToCardProps } from "@/lib/search/mapToCardProps";
+import type { SearchFailure } from "@/lib/search/searchParams";
 import { SearchResult, ViewMode } from "@/types/search-details";
 
 interface SearchResultsViewProps {
   viewMode: ViewMode;
   results: SearchResult[];
-  error?: boolean;
+  failure?: SearchFailure | null;
   onRetry?: () => void;
 }
+
+const FAILURE_MESSAGES: Record<SearchFailure, string> = {
+  rate_limited:
+    "You're searching too quickly. Please wait a moment and try again.",
+  unauthorized: "Your session has expired. Sign in again to continue.",
+  depth_limit: "Refine your filters to see more results.",
+  bad_request:
+    "We couldn't run that search. Try changing or clearing your filters.",
+  generic: "Search failed. Try again.",
+};
 
 // A last-ditch uniqueness suffix in case unitid+cip+title somehow collides
 // (e.g. two rows for the same program that differ only in a field not in
@@ -21,14 +32,16 @@ const resultKey = (result: SearchResult, i: number) =>
 export default function SearchResultsView({
   viewMode,
   results,
-  error,
+  failure,
   onRetry,
 }: SearchResultsViewProps) {
-  if (error) {
+  if (failure) {
+    // The page-depth cap is a limit, not a fault: nothing to retry.
+    const canRetry = failure !== "depth_limit" && failure !== "bad_request";
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-center">
-        <p className="text-sm text-gray-500">Search failed. Try again.</p>
-        {onRetry && (
+        <p className="text-sm text-gray-500">{FAILURE_MESSAGES[failure]}</p>
+        {onRetry && canRetry && (
           <button
             type="button"
             onClick={onRetry}

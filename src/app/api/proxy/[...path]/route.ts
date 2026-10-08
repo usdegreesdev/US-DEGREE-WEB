@@ -1,5 +1,13 @@
 import { NextRequest } from "next/server";
 import { getBackendBaseUrl } from "@/lib/env";
+import { clientIpHeaders } from "@/lib/clientIp";
+import {
+  pickParams,
+  PROGRAMS_BY_CREDENTIAL_SPEC,
+  SCHOOLS_FOR_PROGRAM_SPEC,
+  SEARCH_SPEC,
+  type ParamSpec,
+} from "@/lib/search/searchParams";
 
 type BodylessMethod = "GET" | "DELETE";
 type BodyMethod = "POST" | "PATCH" | "PUT";
@@ -15,6 +23,8 @@ type BodyMethod = "POST" | "PATCH" | "PUT";
 const ALLOWED_PATH_PREFIXES = [
   // Public catalog / search data
   "search",
+  "catalog/programs-by-credential",
+  "catalog/schools-for-program",
   "states",
   "programs",
   "schools",
@@ -47,10 +57,45 @@ const ALLOWED_PATH_PREFIXES = [
   "flag",
 ] as const;
 
+// `search` is a single endpoint, not a prefix: nothing underneath it is called.
+// `colleges` is only called as colleges/<id>[/athletics] (and colleges/search
+// for typeahead), never as the bare list, so the bare list is not reachable.
+const EXACT_PATHS_ONLY = new Set<string>([
+  "search",
+  "catalog/programs-by-credential",
+  "catalog/schools-for-program",
+]);
+const SUBPATHS_ONLY = new Set<string>(["colleges"]);
+
 function isAllowedPath(path: string): boolean {
-  return ALLOWED_PATH_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
-  );
+  return ALLOWED_PATH_PREFIXES.some((prefix) => {
+    if (path === prefix) return !SUBPATHS_ONLY.has(prefix);
+    return !EXACT_PATHS_ONLY.has(prefix) && path.startsWith(`${prefix}/`);
+  });
+}
+
+// Exact query-param allowlists for the list endpoints (see searchParams.ts).
+const PATH_PARAM_SPECS: Record<string, ParamSpec> = {
+  search: SEARCH_SPEC,
+  "catalog/programs-by-credential": PROGRAMS_BY_CREDENTIAL_SPEC,
+  "catalog/schools-for-program": SCHOOLS_FOR_PROGRAM_SPEC,
+};
+
+/**
+ * Query string forwarded to the backend. List endpoints get an allowlist so
+ * a client can't pass tuning params (`fields`, `type=universities`, ...) the
+ * UI never sends; the backend still enforces its own caps. Other paths are
+ * relayed verbatim.
+ */
+function forwardedSearch(path: string, request: NextRequest): string {
+  const spec = PATH_PARAM_SPECS[path];
+  if (spec) {
+    const picked = pickParams(request.nextUrl.searchParams, spec).toString();
+    return picked ? `?${picked}` : "";
+  }
+  // colleges/<id>[/athletics] and colleges/search take no params from this app.
+  if (path.startsWith("colleges/")) return "";
+  return request.nextUrl.search;
 }
 
 /**
@@ -92,24 +137,37 @@ function notFound(): Response {
 }
 
 /**
- * Relay the upstream response verbatim. The client's Authorization header (app
- * JWT) is forwarded untouched — never injected or stripped here, per auth spec
- * §4.9.
+ * Relay the upstream response: status code and body unchanged. The client's
+ * Authorization header (app JWT) is forwarded untouched — never injected or
+ * stripped here, per auth spec §4.9.
+ *
+ * Responses depend on the caller's token (and, for anonymous callers, on the
+ * backend's tiering), so they must never enter a shared cache: a logged-in
+ * response served to an anonymous visitor would defeat the backend's gating.
  */
 async function relay(res: Response): Promise<Response> {
   const contentType = res.headers.get("content-type") || "application/json";
   const bodyText = await res.text();
 
-  return new Response(bodyText, {
-    status: res.status,
-    headers: { "Content-Type": contentType },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": contentType,
+    "Cache-Control": "private, no-store",
+    Vary: "Authorization",
+  };
+  // Lets the UI tell a rate-limited visitor how long to wait.
+  const retryAfter = res.headers.get("retry-after");
+  if (retryAfter) headers["Retry-After"] = retryAfter;
+
+  return new Response(bodyText, { status: res.status, headers });
 }
 
 function forwardedHeaders(
   request: NextRequest,
   extra?: Record<string, string>,
 ): Record<string, string> {
+  // Built from scratch rather than copied from the request, so a browser-sent
+  // X-Client-IP / X-Proxy-Signature can never pass through; ours are added
+  // last and are derived from the connection, not from those headers.
   const headers: Record<string, string> = {
     Accept: "application/json",
     ...extra,
@@ -118,7 +176,7 @@ function forwardedHeaders(
   if (authHeader) {
     headers["Authorization"] = authHeader;
   }
-  return headers;
+  return { ...headers, ...clientIpHeaders(request.headers) };
 }
 
 async function forwardNoBody(
@@ -131,12 +189,13 @@ async function forwardNoBody(
     if (pathStr === null) return badPath();
     if (!isAllowedPath(pathStr)) return notFound();
 
-    const targetUrl = `${getBackendBaseUrl()}/${pathStr}${request.nextUrl.search}`;
+    const targetUrl = `${getBackendBaseUrl()}/${pathStr}${forwardedSearch(pathStr, request)}`;
 
     return relay(
       await fetch(targetUrl, {
         method,
         headers: forwardedHeaders(request),
+        cache: "no-store",
       }),
     );
   } catch (error) {
@@ -154,7 +213,7 @@ async function forwardWithBody(
     if (pathStr === null) return badPath();
     if (!isAllowedPath(pathStr)) return notFound();
 
-    const targetUrl = `${getBackendBaseUrl()}/${pathStr}${request.nextUrl.search}`;
+    const targetUrl = `${getBackendBaseUrl()}/${pathStr}${forwardedSearch(pathStr, request)}`;
 
     // Only JSON bodies are relayed; the backend exposes no multipart endpoints.
     let body: string | undefined;
@@ -176,6 +235,7 @@ async function forwardWithBody(
           "Content-Type": "application/json",
         }),
         body,
+        cache: "no-store",
       }),
     );
   } catch (error) {

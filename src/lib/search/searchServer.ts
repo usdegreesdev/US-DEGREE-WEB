@@ -1,4 +1,12 @@
+import { headers } from "next/headers";
+
 import { getBackendBaseUrl } from "@/lib/env";
+import { clientIpHeaders } from "@/lib/clientIp";
+import {
+  ANON_MAX_PAGE_SIZE,
+  classifySearchFailure,
+  type SearchFailure,
+} from "@/lib/search/searchParams";
 import { CATEGORY_KEYWORDS } from "@/constants/searchCategories";
 import { buildSearchRequest, PAGE_SIZE_OPTIONS } from "@/lib/search/searchRequest";
 import { filterSearchResults } from "@/lib/search/searchFilters";
@@ -11,6 +19,8 @@ export interface ServerSearchBundle {
   itemsPerPage: number;
   category: string;
   isServerPaginated: boolean;
+  /** Why the backend call failed, or null on success. */
+  failure: SearchFailure | null;
 }
 
 export async function fetchServerSearchResults(
@@ -43,21 +53,31 @@ export async function fetchServerSearchResults(
   const pageParam = parseInt(urlSearchParams.get("page") || "1", 10);
   const currentPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
 
+  // SSR has no user token (it lives in the browser), so this render is always
+  // anonymous and the backend caps it at the anonymous page size. Ask for
+  // exactly that so itemsPerPage matches what comes back; the client refetches
+  // at a larger size once it knows the visitor is signed in.
+  const ssrItemsPerPage = Math.min(itemsPerPage, ANON_MAX_PAGE_SIZE);
+
   try {
-    const { requestParams, selectedCredentials, selectedStates } =
-      buildSearchRequest(searchParams, category, currentPage, itemsPerPage);
+    const { requestParams } =
+      buildSearchRequest(searchParams, category, currentPage, ssrItemsPerPage);
 
     const backendUrl = `${getBackendBaseUrl()}/search?${requestParams.toString()}`;
-    const res = await fetch(backendUrl, { cache: "no-store" });
+    const res = await fetch(backendUrl, {
+      cache: "no-store",
+      headers: clientIpHeaders(await headers()),
+    });
 
     if (!res.ok) {
       return {
         results: [],
         totalCount: null,
         currentPage,
-        itemsPerPage,
+        itemsPerPage: ssrItemsPerPage,
         category,
         isServerPaginated: false,
+        failure: classifySearchFailure(res.status, currentPage),
       };
     }
 
@@ -82,8 +102,6 @@ export async function fetchServerSearchResults(
 
     const filteredData = filterSearchResults(rawResults, {
       schoolType,
-      selectedCredentials,
-      selectedStates,
       categoryKeywords: category ? CATEGORY_KEYWORDS[category] : null,
     });
 
@@ -91,9 +109,10 @@ export async function fetchServerSearchResults(
       results: filteredData,
       totalCount: serverTotal,
       currentPage,
-      itemsPerPage,
+      itemsPerPage: ssrItemsPerPage,
       category,
       isServerPaginated: serverPaginated,
+      failure: null,
     };
   } catch (error) {
     console.error("Server search fetch failed:", error);
@@ -101,9 +120,10 @@ export async function fetchServerSearchResults(
       results: [],
       totalCount: null,
       currentPage,
-      itemsPerPage,
+      itemsPerPage: ssrItemsPerPage,
       category,
       isServerPaginated: false,
+      failure: "generic",
     };
   }
 }

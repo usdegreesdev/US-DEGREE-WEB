@@ -58,8 +58,6 @@ describe("matchesCollegeType", () => {
 describe("filterSearchResults", () => {
   const none = {
     schoolType: null,
-    selectedCredentials: [],
-    selectedStates: [],
     categoryKeywords: null,
   };
 
@@ -76,50 +74,6 @@ describe("filterSearchResults", () => {
     expect(filterSearchResults(data, { ...none, schoolType: "public" })).toHaveLength(1);
   });
 
-  // Single-value credential/state selections are applied by the API, so the
-  // client deliberately skips them; only multi-value selections are widened
-  // client-side. Filtering on a single value here would double-apply it.
-  it("ignores a single-value credential selection", () => {
-    const data = [
-      result({ credential_title: "Bachelor's Degree" }),
-      result({ credential_title: "Master's Degree" }),
-    ];
-    expect(
-      filterSearchResults(data, { ...none, selectedCredentials: ["Master's Degree"] }),
-    ).toHaveLength(2);
-  });
-
-  it("applies a multi-value credential selection", () => {
-    const data = [
-      result({ credential_title: "Bachelor's Degree" }),
-      result({ credential_title: "Master's Degree" }),
-      result({ credential_title: "Certificate" }),
-    ];
-    const filtered = filterSearchResults(data, {
-      ...none,
-      selectedCredentials: ["Bachelor's Degree", "Master's Degree"],
-    });
-    expect(filtered).toHaveLength(2);
-  });
-
-  it("matches credentials case-insensitively", () => {
-    const data = [result({ credential_title: "BACHELOR'S DEGREE" })];
-    expect(
-      filterSearchResults(data, {
-        ...none,
-        selectedCredentials: ["bachelor's degree", "Master's Degree"],
-      }),
-    ).toHaveLength(1);
-  });
-
-  it("ignores a single-value state selection but applies multi-value", () => {
-    const data = [result({ state: "CA" }), result({ state: "NY" }), result({ state: "TX" })];
-    expect(filterSearchResults(data, { ...none, selectedStates: ["CA"] })).toHaveLength(3);
-    expect(
-      filterSearchResults(data, { ...none, selectedStates: ["CA", "NY"] }),
-    ).toHaveLength(2);
-  });
-
   it("filters by category keyword substring, case-insensitively", () => {
     const data = [
       result({ program_title: "Computer Science" }),
@@ -132,14 +86,13 @@ describe("filterSearchResults", () => {
 
   it("combines filters conjunctively", () => {
     const data = [
-      result({ college_type: "Public", state: "CA", program_title: "Nursing" }),
-      result({ college_type: "Private", state: "CA", program_title: "Nursing" }),
-      result({ college_type: "Public", state: "TX", program_title: "Nursing" }),
+      result({ college_type: "Public", program_title: "Nursing" }),
+      result({ college_type: "Private", program_title: "Nursing" }),
+      result({ college_type: "Public", program_title: "Art" }),
     ];
     const filtered = filterSearchResults(data, {
       ...none,
       schoolType: "public",
-      selectedStates: ["CA", "NY"],
       categoryKeywords: ["nurs"],
     });
     expect(filtered).toHaveLength(1);
@@ -153,8 +106,6 @@ describe("filterSearchResults", () => {
     expect(() =>
       filterSearchResults(data, {
         ...none,
-        selectedCredentials: ["a", "b"],
-        selectedStates: ["CA", "NY"],
         categoryKeywords: ["x"],
       }),
     ).not.toThrow();

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Select, Button, Spin, Tooltip } from "antd";
 import { BarChart3, ChevronRight, Search, Trash2, Plus } from "lucide-react";
 import {
@@ -12,7 +12,10 @@ import { parseEntryId } from "./compareEntryIds";
 
 const MAX_COMPARE = 5;
 
-const MIN_SEARCH_CHARS = 3;
+// Colleges are a typeahead: the backend caps a page (20 anonymous / 50 signed
+// in), so the list is narrowed by name rather than paged. Below this many
+// characters the default first page is shown.
+const MIN_COLLEGE_SEARCH_CHARS = 2;
 const SEARCH_DEBOUNCE_MS = 300;
 
 interface CompareSearchBarProps {
@@ -50,102 +53,113 @@ export default function CompareSearchBar({
   // Step 1: credential level — a fixed, static list (no backend call).
   const [credentialLevel, setCredentialLevel] = useState<number | null>(null);
 
-  // Step 2: program search, scoped to the chosen credential level (global
-  // across every school, not any one college).
-  //
-  // The query value itself is never read — the input is uncontrolled and the
-  // debounced fetch closes over its argument — so only the setter is bound.
-  const [, setProgramQuery] = useState("");
-  const [programResults, setProgramResults] = useState<ProgramByCredential[]>(
-    [],
-  );
+  // Step 2: program picker, scoped to the chosen credential level (global
+  // across every school, not any one college). The backend returns the full
+  // distinct list for a level in one un-paged response, so it is loaded once
+  // when the level is chosen and filtered locally as the user types.
+  const [programQuery, setProgramQuery] = useState("");
+  const [allPrograms, setAllPrograms] = useState<ProgramByCredential[]>([]);
   const [isSearchingPrograms, setIsSearchingPrograms] = useState(false);
   const [selectedProgram, setSelectedProgram] =
     useState<ProgramByCredential | null>(null);
-  const programSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const programLoadRef = useRef(0);
 
-  // Step 3: college search, scoped to the chosen program's cip_code + the
+  const programResults = useMemo(() => {
+    const q = programQuery.trim().toLowerCase();
+    return q
+      ? allPrograms.filter((p) => p.title.toLowerCase().includes(q))
+      : allPrograms;
+  }, [allPrograms, programQuery]);
+
+  // Step 3: college typeahead, scoped to the chosen program's cip_code + the
   // credential level — the reverse of the compare page's old college-first flow.
   const [, setCollegeQuery] = useState("");
   const [collegeResults, setCollegeResults] = useState<SchoolForProgram[]>([]);
+  const [collegeTotal, setCollegeTotal] = useState<number | null>(null);
   const [isSearchingColleges, setIsSearchingColleges] = useState(false);
   const [selectedCollege, setSelectedCollege] =
     useState<SchoolForProgram | null>(null);
   const collegeSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const collegeAbortRef = useRef<AbortController | null>(null);
+
+  const clearColleges = () => {
+    if (collegeSearchTimerRef.current) {
+      clearTimeout(collegeSearchTimerRef.current);
+      collegeSearchTimerRef.current = null;
+    }
+    collegeAbortRef.current?.abort();
+    setCollegeQuery("");
+    setCollegeResults([]);
+    setCollegeTotal(null);
+    setSelectedCollege(null);
+  };
 
   const resetFlow = () => {
     setCredentialLevel(null);
     setProgramQuery("");
-    setProgramResults([]);
+    setAllPrograms([]);
     setSelectedProgram(null);
-    setCollegeQuery("");
-    setCollegeResults([]);
-    setSelectedCollege(null);
-  };
-
-  // Debounced keyword search for programs at the chosen credential level.
-  // Below MIN_SEARCH_CHARS, falls back to the level's default list instead of
-  // hitting search — so the field is never empty as soon as it's usable.
-  const handleProgramSearch = (
-    text: string,
-    credentialOverride?: number | null,
-  ) => {
-    setProgramQuery(text);
-    if (programSearchTimerRef.current) {
-      clearTimeout(programSearchTimerRef.current);
-      programSearchTimerRef.current = null;
-    }
-
-    const activeCredential =
-      credentialOverride !== undefined ? credentialOverride : credentialLevel;
-    if (activeCredential === null) return;
-
-    const trimmed = text.trim();
-    if (trimmed.length < MIN_SEARCH_CHARS) {
-      setIsSearchingPrograms(true);
-      fetchProgramsByCredential(activeCredential)
-        .then((items) => setProgramResults(items))
-        .catch((err) => console.error("Failed to load default programs:", err))
-        .finally(() => setIsSearchingPrograms(false));
-      return;
-    }
-
-    setIsSearchingPrograms(true);
-    programSearchTimerRef.current = setTimeout(async () => {
-      try {
-        const items = await fetchProgramsByCredential(
-          activeCredential,
-          trimmed,
-        );
-        setProgramResults(items);
-      } catch (err) {
-        console.error("Failed to search programs:", err);
-      } finally {
-        setIsSearchingPrograms(false);
-      }
-    }, SEARCH_DEBOUNCE_MS);
+    clearColleges();
   };
 
   // Credential level changed — reset everything downstream and load that
-  // level's default program list.
+  // level's full program list.
   const handleCredentialChange = (value: number | null | undefined) => {
     const next = value ?? null;
     setCredentialLevel(next);
     setProgramQuery("");
-    setProgramResults([]);
+    setAllPrograms([]);
     setSelectedProgram(null);
-    setCollegeQuery("");
-    setCollegeResults([]);
-    setSelectedCollege(null);
-    if (next === null) return;
-    handleProgramSearch("", next);
+    clearColleges();
+    const loadId = ++programLoadRef.current;
+    if (next === null) {
+      setIsSearchingPrograms(false);
+      return;
+    }
+    setIsSearchingPrograms(true);
+    fetchProgramsByCredential(next)
+      .then((items) => {
+        if (programLoadRef.current === loadId) setAllPrograms(items);
+      })
+      .catch((err) => console.error("Failed to load programs:", err))
+      .finally(() => {
+        if (programLoadRef.current === loadId) setIsSearchingPrograms(false);
+      });
   };
 
-  // Debounced keyword search for colleges offering the chosen program.
+  // Fetch one page of colleges for the chosen program, cancelling any request
+  // still in flight so a slow earlier response can't overwrite a newer one.
+  const loadColleges = async (
+    program: ProgramByCredential,
+    level: number,
+    q?: string,
+  ) => {
+    collegeAbortRef.current?.abort();
+    const controller = new AbortController();
+    collegeAbortRef.current = controller;
+    setIsSearchingColleges(true);
+    try {
+      const page = await fetchSchoolsForProgram(
+        program.cip_code,
+        level,
+        q,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      setCollegeResults(page.schools);
+      setCollegeTotal(page.total);
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        console.error("Failed to load colleges:", err);
+      }
+    } finally {
+      if (!controller.signal.aborted) setIsSearchingColleges(false);
+    }
+  };
+
+  // Debounced typeahead for colleges offering the chosen program.
   const handleCollegeSearch = (text: string) => {
     setCollegeQuery(text);
     if (collegeSearchTimerRef.current) {
@@ -156,51 +170,25 @@ export default function CompareSearchBar({
     if (!selectedProgram || credentialLevel === null) return;
 
     const trimmed = text.trim();
-    if (trimmed.length < MIN_SEARCH_CHARS) {
-      setIsSearchingColleges(true);
-      fetchSchoolsForProgram(
-        selectedProgram.cip_code,
-        credentialLevel,
-        selectedProgram.title,
-      )
-        .then((items) => setCollegeResults(items))
-        .catch((err) => console.error("Failed to load default colleges:", err))
-        .finally(() => setIsSearchingColleges(false));
+    if (trimmed.length < MIN_COLLEGE_SEARCH_CHARS) {
+      void loadColleges(selectedProgram, credentialLevel);
       return;
     }
 
     setIsSearchingColleges(true);
-    collegeSearchTimerRef.current = setTimeout(async () => {
-      try {
-        const items = await fetchSchoolsForProgram(
-          selectedProgram.cip_code,
-          credentialLevel,
-          selectedProgram.title,
-          trimmed,
-        );
-        setCollegeResults(items);
-      } catch (err) {
-        console.error("Failed to search colleges:", err);
-      } finally {
-        setIsSearchingColleges(false);
-      }
+    collegeSearchTimerRef.current = setTimeout(() => {
+      void loadColleges(selectedProgram, credentialLevel, trimmed);
     }, SEARCH_DEBOUNCE_MS);
   };
 
-  // Program changed — reset the college step and load that program's default
-  // college list.
+  // Program changed — reset the college step and load that program's first
+  // page of colleges.
   const handleProgramChange = (value: string | null | undefined) => {
-    const prog = programResults.find((p) => p.title === value) ?? null;
+    const prog = programResults.find((p) => p.cip_code === value) ?? null;
     setSelectedProgram(prog);
-    setCollegeQuery("");
-    setCollegeResults([]);
-    setSelectedCollege(null);
+    clearColleges();
     if (!prog || credentialLevel === null) return;
-    setIsSearchingColleges(true);
-    fetchSchoolsForProgram(prog.cip_code, credentialLevel, prog.title)
-      .then((items) => setCollegeResults(items))
-      .catch((err) => console.error("Failed to load default colleges:", err))
-      .finally(() => setIsSearchingColleges(false));
+    void loadColleges(prog, credentialLevel);
   };
 
   const handleFinalAdd = () => {
@@ -329,9 +317,9 @@ export default function CompareSearchBar({
                 className="w-full h-11"
                 placeholder="Type a program to search"
                 disabled={!programEnabled}
-                value={selectedProgram?.title ?? null}
+                value={selectedProgram?.cip_code ?? null}
                 filterOption={false}
-                onSearch={(text) => handleProgramSearch(text)}
+                onSearch={setProgramQuery}
                 loading={isSearchingPrograms}
                 onChange={handleProgramChange}
                 notFoundContent={
@@ -344,7 +332,7 @@ export default function CompareSearchBar({
                   )
                 }
                 options={programResults.map((p) => ({
-                  value: p.title,
+                  value: p.cip_code,
                   label: p.title,
                 }))}
               />
@@ -415,6 +403,12 @@ export default function CompareSearchBar({
                   };
                 })}
               />
+              {collegeTotal !== null && collegeTotal > collegeResults.length && (
+                <span className="block mt-1 text-[11px] text-gray-400">
+                  Showing {collegeResults.length} of {collegeTotal} colleges —
+                  type to narrow.
+                </span>
+              )}
             </span>
           </Tooltip>
         </div>

@@ -4,7 +4,15 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 import { CATEGORY_KEYWORDS } from "@/constants/searchCategories";
+import { authedFetch, hasAuthenticatedUser } from "@/lib/auth/api";
 import { buildSearchRequest, PAGE_SIZE_OPTIONS } from "@/lib/search/searchRequest";
+import {
+  MAX_PAGES,
+  ANON_MAX_PAGE_SIZE,
+  AUTH_MAX_PAGE_SIZE,
+  classifySearchFailure,
+  type SearchFailure,
+} from "@/lib/search/searchParams";
 import { filterSearchResults } from "@/lib/search/searchFilters";
 import { SearchResult, ViewMode } from "@/types/search-details";
 
@@ -28,7 +36,12 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
     () => initialData?.isServerPaginated || false,
   );
   const [isLoading, setIsLoading] = useState<boolean>(!initialData);
-  const [error, setError] = useState(false);
+  const [failure, setFailure] = useState<SearchFailure | null>(
+    () => initialData?.failure ?? null,
+  );
+  // null until Firebase has restored the session. Treated as anonymous (the
+  // stricter tier) meanwhile; the backend decides what each tier really gets.
+  const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [retryNonce, setRetryNonce] = useState(0);
   const retry = useCallback(() => setRetryNonce((n) => n + 1), []);
@@ -38,6 +51,8 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
   // re-request and flash a skeleton. Any later param change (filter, page,
   // sort) goes through the effect normally.
   const usedInitial = useRef(Boolean(initialData));
+  // Page size the SSR bundle was fetched with (anonymous-capped).
+  const initialPageSize = useRef(initialData?.itemsPerPage ?? 0);
 
   const defaultItemsPerPage =
     viewMode === "grid" ? GRID_ITEMS_PER_PAGE : LIST_ITEMS_PER_PAGE;
@@ -47,6 +62,10 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
   )
     ? perPageParam
     : defaultItemsPerPage;
+  // What the backend will actually return per page for this visitor. It
+  // enforces the cap; we mirror it so page counts match the rows we get.
+  const maxPageSize = isAuthed ? AUTH_MAX_PAGE_SIZE : ANON_MAX_PAGE_SIZE;
+  const effectivePageSize = Math.min(itemsPerPage, maxPageSize);
   const category = searchParams.get("category") || "";
 
   // Derive current page from URL parameter (default: 1)
@@ -83,32 +102,45 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
   );
 
   useEffect(() => {
-    if (usedInitial.current) {
-      usedInitial.current = false;
-      return;
-    }
-
-    window.scrollTo(0, 0);
-
     const controller = new AbortController();
 
     const fetchResults = async () => {
+      const authed = await hasAuthenticatedUser();
+      if (controller.signal.aborted) return;
+      setIsAuthed(authed);
+      const pageSize = Math.min(
+        itemsPerPage,
+        authed ? AUTH_MAX_PAGE_SIZE : ANON_MAX_PAGE_SIZE,
+      );
+
+      // SSR already fetched this exact bundle for the params the page loaded
+      // with — skip the first fetch so hydration doesn't immediately
+      // re-request and flash a skeleton. Not when a signed-in visitor wants a
+      // bigger page than the anonymous SSR render could return. Any later
+      // param change (filter, page, sort) goes through normally.
+      if (usedInitial.current) {
+        usedInitial.current = false;
+        if (pageSize === initialPageSize.current) return;
+      }
+
+      window.scrollTo(0, 0);
       setIsLoading(true);
       try {
-        const { requestParams, selectedCredentials, selectedStates } =
-          buildSearchRequest(searchParams, category, currentPage, itemsPerPage);
+        const { requestParams } =
+          buildSearchRequest(searchParams, category, currentPage, pageSize);
 
-        const res = await fetch(
-          `/api/proxy/search?${requestParams.toString()}`,
-          { signal: controller.signal },
-        );
-        const data = await res.json();
-
-        let rawResults: SearchResult[] = [];
-        let serverTotal: number | null = null;
-        let serverPaginated = false;
+        // Attaches the user's token when signed in (the backend's authed tier);
+        // falls back to a plain anonymous request otherwise.
+        const res = await authedFetch(`/search?${requestParams.toString()}`, {
+          signal: controller.signal,
+        });
 
         if (res.ok) {
+          const data = await res.json();
+          let rawResults: SearchResult[] = [];
+          let serverTotal: number | null = null;
+          let serverPaginated = false;
+
           if (Array.isArray(data)) {
             rawResults = data;
           } else if (data && typeof data === "object") {
@@ -125,23 +157,22 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
 
           const filteredData = filterSearchResults(rawResults, {
             schoolType: searchParams.get("school_type"),
-            selectedCredentials,
-            selectedStates,
             categoryKeywords: category ? CATEGORY_KEYWORDS[category] : null,
           });
 
           setResults(filteredData);
           setTotalCount(serverTotal);
           setIsServerPaginated(serverPaginated);
-          setError(false);
+          setFailure(null);
         } else {
           // A non-OK response must not look like a legitimate zero-hit
-          // search — clear stale results and flag it as a failure so the UI
-          // shows "Search failed" instead of "No results found".
+          // search — clear stale results and record why it failed so the UI
+          // says that (rate limit, page-depth cap, ...) instead of "No
+          // results found". The backend's status is authoritative.
           setResults([]);
           setTotalCount(null);
           setIsServerPaginated(false);
-          setError(true);
+          setFailure(classifySearchFailure(res.status, currentPage));
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
@@ -149,7 +180,7 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
           setResults([]);
           setTotalCount(null);
           setIsServerPaginated(false);
-          setError(true);
+          setFailure("generic");
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -165,33 +196,47 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
     };
   }, [searchParams, category, currentPage, itemsPerPage, retryNonce]);
 
-  const totalPages = Math.max(
-    1,
-    totalCount !== null
-      ? Math.ceil(totalCount / itemsPerPage)
-      : Math.ceil(results.length / itemsPerPage),
+  const rawPages = Math.ceil(
+    (totalCount !== null ? totalCount : results.length) / effectivePageSize,
   );
+  // The backend won't serve past page 25 to anyone; stop the pager there and
+  // tell the visitor to narrow the search instead.
+  const depthLimited = rawPages > MAX_PAGES;
+  let totalPages = Math.max(
+    1,
+    depthLimited ? MAX_PAGES : rawPages,
+  );
+  // Past the cap the backend returns no total; keep the pager usable so the
+  // visitor can step back.
+  if (failure === "depth_limit") totalPages = Math.max(totalPages, MAX_PAGES);
 
   const currentResults = isServerPaginated
     ? results
     : results.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage,
+        (currentPage - 1) * effectivePageSize,
+        currentPage * effectivePageSize,
       );
 
   return {
     isLoading,
-    error,
+    failure,
     retry,
     currentPage,
     setCurrentPage: handlePageChange,
     viewMode,
     setViewMode,
     totalPages,
+    depthLimited,
     currentResults,
     category,
-    pageSize: itemsPerPage,
+    pageSize: effectivePageSize,
+    pageSizeOptions: pageSizeOptionsFor(maxPageSize),
     setPageSize: handlePageSizeChange,
   };
 }
 
+/** Page sizes the visitor can actually get: the standard ones up to their cap. */
+function pageSizeOptionsFor(cap: number): number[] {
+  const options = PAGE_SIZE_OPTIONS.filter((size) => size <= cap) as number[];
+  return options.includes(cap) ? options : [...options, cap];
+}
