@@ -209,6 +209,7 @@ describe("every backend code is mapped", () => {
     "EMAIL_ALREADY_IN_USE",
     "EMAIL_IN_COOLDOWN",
     "CURRENT_EMAIL_NOT_VERIFIED",
+    "AGE_CONSENT_REQUIRED",
     "RATE_LIMITED",
     "NOT_FOUND",
     "FORBIDDEN",
@@ -233,6 +234,17 @@ describe("every backend code is mapped", () => {
         ),
       ).size,
     ).toBe(1);
+  });
+});
+
+describe("AGE_CONSENT_REQUIRED", () => {
+  it("shows the exact 18+ copy from an ApiError, with the request id", () => {
+    expect(
+      getFriendlyError(new ApiError("Sync account", 400, "AGE_CONSENT_REQUIRED", "req-1")),
+    ).toEqual({
+      message: "You must confirm you are 18 or older to continue.",
+      requestId: "req-1",
+    });
   });
 });
 

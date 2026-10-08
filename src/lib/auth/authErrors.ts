@@ -64,6 +64,7 @@ const BACKEND_MESSAGES: Record<string, string> = {
     "This email address can't be used right now. Please try again later.",
   CURRENT_EMAIL_NOT_VERIFIED:
     "Please verify your current email address before changing it.",
+  AGE_CONSENT_REQUIRED: "You must confirm you are 18 or older to continue.",
   RATE_LIMITED: TRY_AGAIN,
   NOT_FOUND: "We couldn't find what you were looking for.",
   FORBIDDEN: "You don't have permission to do that.",

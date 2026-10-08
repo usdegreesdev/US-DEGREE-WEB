@@ -16,6 +16,7 @@ import {
   browserSessionPersistence,
   sendPasswordResetEmail,
   signInWithCustomToken,
+  deleteUser,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 
@@ -23,7 +24,8 @@ const NOT_CONFIGURED_MESSAGE = "Sign-in is not configured.";
 import { clearAppJwt } from "@/lib/auth/tokenStore";
 import { signInWithApple } from "@/lib/appleAuth";
 import { exchangeAppleIdToken } from "@/lib/auth/api";
-import { UserFacingError } from "@/lib/auth/authErrors";
+import { UserFacingError, backendMessageFor } from "@/lib/auth/authErrors";
+import { readApiError, type ApiError } from "@/lib/auth/apiError";
 import { syncCompareMatrixOwner } from "@/components/compare/compareMatrixStore";
 import { syncFitStatsOwner } from "@/lib/fitScoreSync";
 
@@ -96,6 +98,25 @@ async function syncUserRecord(
   return res;
 }
 
+function providerFor(u: FirebaseUser): "credentials" | "apple" | "google" {
+  if (u.providerData.some((p) => p.providerId === "password")) {
+    return "credentials";
+  }
+  if (u.providerData.some((p) => p.providerId === "apple.com")) return "apple";
+  return "google";
+}
+
+// A backend error is shown as-is only when its code (or 429) has copy of ours
+// (e.g. AGE_CONSENT_REQUIRED); anything else uses the caller's own fallback.
+function isDisplayable(e: ApiError): boolean {
+  return Boolean(backendMessageFor(e.code)) || e.status === 429;
+}
+
+async function syncError(res: Response, fallback: string): Promise<Error> {
+  const e = await readApiError(res, "Sync account");
+  return isDisplayable(e) ? e : new UserFacingError(fallback);
+}
+
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
@@ -127,10 +148,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authActionInProgress = useRef(false);
 
   const currentUidRef = useRef<string | null>(null);
-  // Set by loginWithGoogle right before opening the popup, read (and cleared)
-  // by the onAuthStateChanged listener when it syncs the resulting user to
-  // the backend — that listener is the only place Google's /user POST fires.
-  const pendingGoogleAgeConsentRef = useRef<boolean | null>(null);
 
   const getActionCodeSettings = () => {
     return {
@@ -185,6 +202,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Tear down both sides after a failed /user sync so the UI and Firebase
+  // never disagree about who is signed in.
+  const teardownFailedSync = async () => {
+    clearAppJwt();
+    currentUidRef.current = null;
+    if (!auth) return;
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Sign-out after failed sync:", e);
+    }
+  };
+
   const login = async (
     email: string,
     password: string,
@@ -225,9 +255,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!res.ok) {
-        throw new UserFacingError(
-          "We couldn't load your account. Please try again.",
-        );
+        await teardownFailedSync();
+        throw await syncError(res, "We couldn't load your account. Please try again.");
       }
 
       const dbUser = await res.json();
@@ -286,6 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await sendEmailVerification(credential.user, getActionCodeSettings());
 
         let syncOk = false;
+        let syncFailure: ApiError | null = null;
         try {
           const res = await syncUserRecord(credential.user, {
             display_name: displayName.trim(),
@@ -297,6 +327,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
           syncOk = res.ok;
           if (!res.ok) {
+            syncFailure = await readApiError(res, "Create account");
             console.error(
               "Postgres user creation failed during signup:",
               res.status,
@@ -308,18 +339,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!syncOk) {
           // Don't leave an orphan Firebase user with no backend record —
-          // sign it out so the account doesn't look created when it isn't.
+          // delete it so the same email can retry signup.
+          let deleted = true;
+          try {
+            await deleteUser(credential.user);
+          } catch (deleteErr) {
+            deleted = false;
+            console.error("Could not delete orphan Firebase user:", deleteErr);
+          }
           try {
             await signOut(auth);
-          } catch (signOutErr) {
-            console.error(
-              "Sign-out after failed signup sync:",
-              signOutErr,
-            );
+          } catch {
+            // already signed out after deleteUser
           }
           clearAppJwt();
+          currentUidRef.current = null;
+          if (syncFailure && isDisplayable(syncFailure)) throw syncFailure;
           throw new UserFacingError(
-            "We couldn't finish creating your account. Please try again.",
+            deleted
+              ? "We couldn't finish creating your account. Please try again."
+              : "Account setup failed. Wait a minute and try again, or reset password if this email is stuck.",
           );
         }
       }
@@ -333,15 +372,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ageConsent?: boolean,
   ): Promise<FirebaseUser> => {
     if (!auth) throw new UserFacingError(NOT_CONFIGURED_MESSAGE);
-    clearAppJwt();
-    pendingGoogleAgeConsentRef.current = ageConsent ?? null;
-    await setPersistence(auth, browserLocalPersistence);
-    const result = await signInWithPopup(auth, googleProvider);
-    if (result.user) {
-      currentUidRef.current = result.user.uid;
+    // Hold the flag through the popup AND the backend sync so the
+    // onAuthStateChanged listener doesn't race a second /user POST, and so
+    // this promise only resolves once the backend accepted the user.
+    authActionInProgress.current = true;
+    try {
+      clearAppJwt();
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithPopup(auth, googleProvider);
+      const fbUser = result.user;
+      currentUidRef.current = fbUser.uid;
+
+      // Only a Google credential may carry the sign-up age consent.
+      const isGoogle = fbUser.providerData.some(
+        (p) => p.providerId === "google.com",
+      );
+      let res: Response;
+      try {
+        res = await syncUserRecord(fbUser, {
+          display_name: fbUser.displayName,
+          profile_image: fbUser.photoURL,
+          auth_provider: "google",
+          email_verified: fbUser.emailVerified,
+          provider_user_id: fbUser.uid,
+          ...(isGoogle && ageConsent !== undefined
+            ? { age_consent: ageConsent }
+            : {}),
+        });
+      } catch (err) {
+        await teardownFailedSync();
+        throw err;
+      }
+      if (!res.ok) {
+        await teardownFailedSync();
+        throw await syncError(res, "We couldn't load your account. Please try again.");
+      }
+
+      const dbUser = await res.json();
+      setUser({
+        id: dbUser.id,
+        displayName: dbUser.display_name,
+        email: dbUser.email,
+        photoURL: dbUser.profile_image,
+        role: dbUser.role,
+        authProvider: "firebase",
+        emailVerified: fbUser.emailVerified,
+      });
       broadcastAuthChange("LOGIN");
+      window.dispatchEvent(new Event("auth-state-changed"));
+      return fbUser;
+    } finally {
+      authActionInProgress.current = false;
     }
-    return result.user;
   };
 
   const loginWithApple = async (ageConsent?: boolean): Promise<AuthUser> => {
@@ -362,8 +444,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // there's nothing for silent-restore-on-refresh (exchangeIdToken) to
       // re-authenticate against once the 30-minute app JWT expires. Signing
       // in with the backend-issued custom token establishes that session.
-      await setPersistence(auth, browserLocalPersistence);
-      await signInWithCustomToken(auth, firebaseToken);
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithCustomToken(auth, firebaseToken);
+      } catch (e) {
+        // Don't leave a backend JWT with no stable Firebase session behind it.
+        clearAppJwt();
+        throw e;
+      }
 
       const mappedUser: AuthUser = {
         id: dbUser.id,
@@ -413,11 +501,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const res = await syncUserRecord(auth.currentUser, {
             display_name: auth.currentUser.displayName,
             profile_image: auth.currentUser.photoURL,
-            auth_provider: auth.currentUser.providerData.some(
-              (p) => p.providerId === "password",
-            )
-              ? "credentials"
-              : "google",
+            auth_provider: providerFor(auth.currentUser),
             email_verified: true,
             provider_user_id: auth.currentUser.uid,
           });
@@ -543,6 +627,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
 
               if (authActionInProgress.current) {
+                // The in-flight action syncs the user itself; still end the
+                // initial loading state so gated pages don't spin forever.
+                setLoading(false);
                 return;
               }
 
@@ -555,19 +642,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const isPasswordAuth = firebaseUser.providerData.some(
                 (p) => p.providerId === "password",
               );
-              const pendingAgeConsent = pendingGoogleAgeConsentRef.current;
-              pendingGoogleAgeConsentRef.current = null;
 
               try {
                 const res = await syncUserRecord(firebaseUser, {
                   display_name: firebaseUser.displayName,
                   profile_image: firebaseUser.photoURL,
-                  auth_provider: isPasswordAuth ? "credentials" : "google",
+                  auth_provider: providerFor(firebaseUser),
                   email_verified: firebaseUser.emailVerified,
                   provider_user_id: firebaseUser.uid,
-                  ...(pendingAgeConsent !== null
-                    ? { age_consent: pendingAgeConsent }
-                    : {}),
                 });
                 if (res.ok) {
                   if (!active) return;
