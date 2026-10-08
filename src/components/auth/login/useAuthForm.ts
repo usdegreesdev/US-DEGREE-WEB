@@ -262,18 +262,15 @@ export function useAuthForm({
 
   const handleGoogleSignIn = async () => {
     if (isLoading) return;
-    // First-time sign-up via Google/Apple must clear the same 18+ gate as
-    // email signup, before Firebase is ever called. Returning users sign in
-    // from the Login tab, where no account is being created.
-    if (mode === "signup" && !ageConsent) {
+    // Google/Apple can create an account from either tab, so both must clear
+    // the same 18+ gate as email signup before Firebase is ever called.
+    if (!ageConsent) {
       setError("You must confirm you are 18 or older to continue");
       return;
     }
     setIsLoading(true);
     try {
-      const firebaseUser = await loginWithGoogle(
-        mode === "signup" ? ageConsent : undefined,
-      );
+      const firebaseUser = await loginWithGoogle(true);
       onSuccess(firebaseUser.email!);
       onClose();
     } catch (err) {
@@ -287,15 +284,13 @@ export function useAuthForm({
 
   const handleAppleSignIn = async () => {
     if (isLoading) return;
-    if (mode === "signup" && !ageConsent) {
+    if (!ageConsent) {
       setError("You must confirm you are 18 or older to continue");
       return;
     }
     setIsLoading(true);
     try {
-      const appleUser = await loginWithApple(
-        mode === "signup" ? ageConsent : undefined,
-      );
+      const appleUser = await loginWithApple(true);
       onSuccess(appleUser.email ?? "");
       onClose();
     } catch (err) {

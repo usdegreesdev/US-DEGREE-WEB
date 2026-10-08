@@ -54,6 +54,28 @@ export default function LoginModal({
         <AuthModeTabs mode={form.mode} onSelect={selectMode} />
       )}
 
+      {form.mode === "login" && (
+        <div className="flex items-center gap-2 pl-1 select-none pb-3">
+          <input
+            id="social-age-consent-checkbox"
+            type="checkbox"
+            checked={form.ageConsent}
+            onChange={(e) => {
+              form.setAgeConsent(e.target.checked);
+              form.setError("");
+            }}
+            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+          />
+          <label
+            htmlFor="social-age-consent-checkbox"
+            className="text-xs font-bold text-slate-500 cursor-pointer"
+          >
+            I confirm that I am 18 years of age or older (required for Google /
+            Apple)
+          </label>
+        </div>
+      )}
+
       {!isForgotPassword && (
         <SocialAuthButtons
           onGoogleSignIn={form.handleGoogleSignIn}

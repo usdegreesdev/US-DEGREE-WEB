@@ -123,7 +123,8 @@ export async function exchangeAppleIdToken(
     body: JSON.stringify({
       id_token: idToken,
       full_name: fullName,
-      age_consent: !!ageConsent,
+      // Omit when unknown so a returning user is never recorded as non-consenting.
+      ...(ageConsent !== undefined ? { age_consent: ageConsent } : {}),
     }),
   });
 
