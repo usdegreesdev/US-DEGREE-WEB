@@ -14,6 +14,7 @@
 
 import { auth } from "@/lib/firebase";
 import { getAppJwt, setAppJwt, clearAppJwt } from "./tokenStore";
+import { readApiError } from "./apiError";
 import { getCredentialLevelInfo } from "@/constants/credentialLevel";
 
 // All backend traffic goes through the Next.js proxy route, which forwards the
@@ -61,7 +62,7 @@ export async function exchangeIdToken(forceRefresh = false): Promise<string> {
 
       if (!res.ok) {
         clearAppJwt();
-        throw new Error(`Token exchange failed (${res.status})`);
+        throw await readApiError(res, "Token exchange");
       }
 
       const data = (await res.json()) as { token?: string };
@@ -128,7 +129,7 @@ export async function exchangeAppleIdToken(
 
   if (!res.ok) {
     clearAppJwt();
-    throw new Error(`Apple sign-in failed (${res.status})`);
+    throw await readApiError(res, "Apple sign-in");
   }
 
   const data = (await res.json()) as AppleAuthResult;
@@ -154,6 +155,18 @@ export async function hasAuthenticatedUser(): Promise<boolean> {
     // Older SDKs without authStateReady — fall through to a direct read.
   }
   return !!auth.currentUser;
+}
+
+/**
+ * True when the backend says the app JWT is expired: a 401, or (in case it
+ * ever answers with another status) the AUTH_TOKEN_EXPIRED code. Either way
+ * authedFetch silently re-exchanges and retries once instead of surfacing an
+ * error.
+ */
+async function isExpiredToken(res: Response): Promise<boolean> {
+  if (res.status === 401) return true;
+  if (res.ok) return false;
+  return (await readApiError(res.clone(), "Request")).code === "AUTH_TOKEN_EXPIRED";
 }
 
 /**
@@ -193,7 +206,7 @@ export async function authedFetch(
 
   let res = await run(token);
 
-  if (res.status === 401) {
+  if (await isExpiredToken(res)) {
     // App JWT expired — refresh the Firebase token, re-exchange, retry once.
     const fresh = await exchangeIdToken(true);
     res = await run(fresh);
@@ -204,20 +217,20 @@ export async function authedFetch(
 
 async function parseJson<T>(res: Response, action: string): Promise<T> {
   if (!res.ok) {
-    // Log the backend's error body (forwarded verbatim by the proxy)
-    // server/browser-console side only, so a 500 isn't opaque to whoever's
-    // debugging it — it usually carries the real cause (e.g. a DB error).
-    // Never put it in the thrown message: callers render Error.message
-    // straight into toasts/forms, and that body can contain stack traces,
-    // SQL, or file paths.
-    let detail = "";
-    try {
-      detail = (await res.text()).slice(0, 500);
-    } catch {
-      // ignore — body may be unreadable
+    // The thrown ApiError carries only status / code / requestId — never the
+    // response body — because callers may render it (see getFriendlyError).
+    // The raw body is logged outside production only, since it can contain
+    // stack traces, SQL, or file paths.
+    if (process.env.NODE_ENV !== "production") {
+      let detail = "";
+      try {
+        detail = (await res.clone().text()).slice(0, 500);
+      } catch {
+        // ignore — body may be unreadable
+      }
+      console.error(`${action} failed (${res.status})`, detail);
     }
-    console.error(`${action} failed (${res.status})`, detail);
-    throw new Error(`${action} failed (${res.status})`);
+    throw await readApiError(res, action);
   }
   return (await res.json()) as T;
 }

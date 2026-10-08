@@ -421,6 +421,18 @@ describe("/api/proxy", () => {
       }
     });
 
+    it("relays the backend's X-Request-Id, but only a well-formed one", async () => {
+      vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response("{}", { status: 500, headers: { "x-request-id": "req_ab-12" } }),
+        )
+        .mockResolvedValueOnce(
+          new Response("{}", { status: 500, headers: { "x-request-id": "bad id<script>" } }),
+        );
+      expect((await search("?title=a")).headers.get("x-request-id")).toBe("req_ab-12");
+      expect((await search("?title=a")).headers.get("x-request-id")).toBeNull();
+    });
+
     it("fetches the backend with cache: no-store and no server credential", async () => {
       const fetchMock = mockOk();
       await search("?title=a");

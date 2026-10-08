@@ -167,6 +167,39 @@ describe("auth/api", () => {
       ).toBe("Bearer new-jwt");
     });
 
+    it("treats AUTH_TOKEN_EXPIRED as an expired token even on a non-401 status", async () => {
+      setAppJwt("expired-jwt");
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          jsonResponse(
+            { error: { code: "AUTH_TOKEN_EXPIRED", message: "x" }, requestId: "r1" },
+            403,
+          ),
+        )
+        .mockResolvedValueOnce(jsonResponse({ token: "new-jwt" }))
+        .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+      const res = await authedFetch("/profile");
+
+      expect(res.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not retry other non-401 errors", async () => {
+      setAppJwt("jwt");
+      const fetchMock = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          jsonResponse({ error: { code: "FORBIDDEN", message: "x" } }, 403),
+        );
+
+      const res = await authedFetch("/profile");
+
+      expect(res.status).toBe(403);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it("retries at most once, returning the second 401", async () => {
       setAppJwt("expired-jwt");
       const fetchMock = vi

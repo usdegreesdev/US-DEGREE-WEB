@@ -65,7 +65,14 @@ export default function LoginModal({
         {form.error && (
           <div className="bg-rose-50 border border-rose-100 text-xs text-rose-600 font-bold px-4 py-2.5 rounded-xl flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0"></span>
-            {form.error}
+            <span>
+              {form.error}
+              {form.errorRef && (
+                <span className="block text-[10px] font-medium opacity-70">
+                  Ref: {form.errorRef}
+                </span>
+              )}
+            </span>
           </div>
         )}
 

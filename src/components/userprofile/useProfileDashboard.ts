@@ -27,6 +27,7 @@ import {
   type DeactivationPayload,
 } from "../../lib/auth/api";
 import { clearAppJwt } from "../../lib/auth/tokenStore";
+import { unavailableEmailMessage } from "../../lib/auth/authErrors";
 import {
   FIT_SCORE_EVENT,
   readFitStats,
@@ -329,9 +330,10 @@ export function useProfileDashboard(authUser?: ProfileAuthUser | null) {
     try {
       const availability = await checkEmailAvailable(values.newEmail);
       if (!availability.available) {
+        // Fixed copy keyed on the backend's code; `details` is backend text
+        // and is not shown.
         throw new EmailAvailabilityError(
-          availability.details ||
-            "This email address can't be used right now.",
+          unavailableEmailMessage(availability.code),
         );
       }
     } catch (err) {

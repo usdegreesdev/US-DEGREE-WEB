@@ -23,6 +23,7 @@ const NOT_CONFIGURED_MESSAGE = "Sign-in is not configured.";
 import { clearAppJwt } from "@/lib/auth/tokenStore";
 import { signInWithApple } from "@/lib/appleAuth";
 import { exchangeAppleIdToken } from "@/lib/auth/api";
+import { UserFacingError } from "@/lib/auth/authErrors";
 import { syncCompareMatrixOwner } from "@/components/compare/compareMatrixStore";
 import { syncFitStatsOwner } from "@/lib/fitScoreSync";
 
@@ -159,14 +160,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const cooldownError = (eligibleAt?: string): Error => {
+  const cooldownError = (eligibleAt?: string): UserFacingError => {
     const when = eligibleAt
       ? new Date(eligibleAt).toLocaleString(undefined, {
           dateStyle: "medium",
           timeStyle: "short",
         })
       : "24 hours after deactivation";
-    return new Error(
+    return new UserFacingError(
       `You recently deactivated an account with this email. You can register again after ${when}.`,
     );
   };
@@ -189,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     rememberMe = false,
   ): Promise<AuthUser> => {
-    if (!auth) throw new Error(NOT_CONFIGURED_MESSAGE);
+    if (!auth) throw new UserFacingError(NOT_CONFIGURED_MESSAGE);
     authActionInProgress.current = true;
     try {
       // Drop any app JWT minted for a previously signed-in user
@@ -224,7 +225,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to sync user session with backend");
+        throw new UserFacingError(
+          "We couldn't load your account. Please try again.",
+        );
       }
 
       const dbUser = await res.json();
@@ -254,7 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     role?: string,
     ageConsent?: boolean,
   ): Promise<AuthUser> => {
-    if (!auth) throw new Error(NOT_CONFIGURED_MESSAGE);
+    if (!auth) throw new UserFacingError(NOT_CONFIGURED_MESSAGE);
     authActionInProgress.current = true;
     try {
       clearAppJwt();
@@ -264,7 +267,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // would let signup slip through during the 24h deactivation cooldown.
       const avail = await checkEmailAvailability(email);
       if (avail.available === null) {
-        throw new Error(
+        throw new UserFacingError(
           "We couldn't verify this email. Please try again.",
         );
       }
@@ -315,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
           }
           clearAppJwt();
-          throw new Error(
+          throw new UserFacingError(
             "We couldn't finish creating your account. Please try again.",
           );
         }
@@ -329,7 +332,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async (
     ageConsent?: boolean,
   ): Promise<FirebaseUser> => {
-    if (!auth) throw new Error(NOT_CONFIGURED_MESSAGE);
+    if (!auth) throw new UserFacingError(NOT_CONFIGURED_MESSAGE);
     clearAppJwt();
     pendingGoogleAgeConsentRef.current = ageConsent ?? null;
     await setPersistence(auth, browserLocalPersistence);
@@ -342,7 +345,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithApple = async (ageConsent?: boolean): Promise<AuthUser> => {
-    if (!auth) throw new Error(NOT_CONFIGURED_MESSAGE);
+    if (!auth) throw new UserFacingError(NOT_CONFIGURED_MESSAGE);
     authActionInProgress.current = true;
     try {
       clearAppJwt();
@@ -452,7 +455,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
   ): Promise<void> => {
-    if (!auth) throw new Error(NOT_CONFIGURED_MESSAGE);
+    if (!auth) throw new UserFacingError(NOT_CONFIGURED_MESSAGE);
     authActionInProgress.current = true;
     try {
       const credential = await signInWithEmailAndPassword(
@@ -467,7 +470,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const sendPasswordReset = async (email: string): Promise<void> => {
-    if (!auth) throw new Error(NOT_CONFIGURED_MESSAGE);
+    if (!auth) throw new UserFacingError(NOT_CONFIGURED_MESSAGE);
     await sendPasswordResetEmail(auth, email.trim());
   };
 

@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import {
+  getFriendlyError,
   getFriendlyErrorMessage,
   isCancelledPopupError,
 } from "@/lib/auth/authErrors";
@@ -73,7 +74,20 @@ export function useAuthForm({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setErrorText] = useState("");
+  // Backend request id for the current error, shown as a small "Ref: <id>".
+  const [errorRef, setErrorRef] = useState("");
+  // Plain-text setter: clears any stale Ref along with the message.
+  const setError = (message: string) => {
+    setErrorText(message);
+    setErrorRef("");
+  };
+  // Set the error from anything thrown; only mapped copy reaches the UI.
+  const showError = (err: unknown) => {
+    const { message, requestId } = getFriendlyError(err);
+    setErrorText(message);
+    setErrorRef(requestId ?? "");
+  };
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isParent, setIsParent] = useState(false);
@@ -176,7 +190,7 @@ export function useAuthForm({
         await sendPasswordReset(cleanEmail);
         setResetSent(true);
       } catch (err) {
-        setError(getFriendlyErrorMessage(err));
+        showError(err);
       } finally {
         setIsLoading(false);
       }
@@ -239,7 +253,7 @@ export function useAuthForm({
         setVerificationEmail(cleanEmail);
         setIsVerificationSent(true);
       } else {
-        setError(getFriendlyErrorMessage(err));
+        showError(err);
       }
     } finally {
       setIsLoading(false);
@@ -264,7 +278,7 @@ export function useAuthForm({
       onClose();
     } catch (err) {
       if (!isCancelledPopupError(err)) {
-        setError(getFriendlyErrorMessage(err));
+        showError(err);
       }
     } finally {
       setIsLoading(false);
@@ -286,7 +300,7 @@ export function useAuthForm({
       onClose();
     } catch (err) {
       if (!isCancelledPopupError(err)) {
-        setError(getFriendlyErrorMessage(err));
+        showError(err);
       }
     } finally {
       setIsLoading(false);
@@ -322,6 +336,7 @@ export function useAuthForm({
     showConfirmPassword,
     setShowConfirmPassword,
     error,
+    errorRef,
     setError,
     isLoading,
     rememberMe,

@@ -22,8 +22,9 @@ export function useEmailVerification() {
       setResent(true);
       setTimeout(() => setResent(false), FEEDBACK_TIMEOUT_MS);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "";
-      if (errorMessage.includes("auth/too-many-requests")) {
+      // Matched on the Firebase error code, never on message text.
+      const code = (err as { code?: unknown } | null)?.code;
+      if (code === "auth/too-many-requests") {
         setResendError(
           "Please wait a minute before requesting another verification email.",
         );

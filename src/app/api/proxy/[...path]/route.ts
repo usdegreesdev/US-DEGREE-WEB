@@ -157,6 +157,11 @@ async function relay(res: Response): Promise<Response> {
   // Lets the UI tell a rate-limited visitor how long to wait.
   const retryAfter = res.headers.get("retry-after");
   if (retryAfter) headers["Retry-After"] = retryAfter;
+  // The backend's request id, which the UI shows as "Ref: <id>" for support.
+  const requestId = res.headers.get("x-request-id");
+  if (requestId && /^[A-Za-z0-9_-]{1,64}$/.test(requestId)) {
+    headers["X-Request-Id"] = requestId;
+  }
 
   return new Response(bodyText, { status: res.status, headers });
 }
