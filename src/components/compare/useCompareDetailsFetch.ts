@@ -3,6 +3,7 @@ import type { College } from "@/types/university/ComparisonTable";
 import {
   fetchCompareMatrixDetails,
   hasAuthenticatedUser,
+  type EarningsAvgSalaryResolved,
   type SelectedCompareCollege,
 } from "@/lib/auth/api";
 import { parseEntryId, readEntryPrograms } from "./compareEntryIds";
@@ -82,6 +83,59 @@ function matchDetailsToEntries(
   return map;
 }
 
+type Salary = number | EarningsAvgSalaryResolved | null;
+type Num = number | string | null;
+
+interface OverviewResponse {
+  school_name?: string | null;
+  school?: {
+    name?: string | null;
+    school_name?: string | null;
+    city?: string | null;
+    state?: string | null;
+    control?: string | null;
+    school_url?: string | null;
+  };
+  admissions?: {
+    admission_rate?: Num;
+    sat_rw_min?: Num;
+    sat_math_min?: Num;
+    sat_rw_max?: Num;
+    sat_math_max?: Num;
+    sat_avg_overall?: Num;
+  };
+  completion?: { completion_rate?: Num };
+  students?: { size?: Num; student_faculty_ratio?: string | number | null };
+  program?: { title?: string | null; program_name?: string | null };
+  earnings?: { year_1?: Salary };
+  earnings_resolved?: { year_1?: Salary };
+}
+
+interface TuitionResponse {
+  tuition?: {
+    tuition_in_state?: Num;
+    tuition_out_state?: Num;
+    sticker_price?: Num;
+    avg_debt?: Num;
+    debt_income_ratio?: Num;
+  };
+}
+
+interface CollegeResponse {
+  school_name?: string | null;
+  name?: string | null;
+  city?: string | null;
+  state?: string | null;
+  control?: string | null;
+  school_url?: string | null;
+  accreditor?: string | null;
+}
+
+interface OutcomesResponse {
+  earnings?: { year_1?: Salary };
+  earnings_resolved?: { year_1?: Salary };
+}
+
 async function fetchPublicCompareDetail(
   entryId: string,
   entryProgramInfo?: { programName?: string; credentialTitle?: string },
@@ -110,10 +164,10 @@ async function fetchPublicCompareDetail(
     const [overviewRes, tuitionRes, collegeRes, outcomesRes] =
       await Promise.all(promises);
 
-    let overviewData: any = {};
-    let tuitionData: any = {};
-    let collegeData: any = {};
-    let outcomesData: any = {};
+    let overviewData: OverviewResponse = {};
+    let tuitionData: TuitionResponse = {};
+    let collegeData: CollegeResponse = {};
+    let outcomesData: OutcomesResponse = {};
 
     if (overviewRes && overviewRes.ok) overviewData = await overviewRes.json();
     if (tuitionRes && tuitionRes.ok) tuitionData = await tuitionRes.json();
