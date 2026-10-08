@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Heart, Clock, BookOpen, MapPin } from "lucide-react";
 import UserSatPopup from "./UserSatPopup";
@@ -27,6 +27,24 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
+
+// Matches the "md" breakpoint; only one layout is mounted at a time.
+const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
+
+function subscribeToDesktopQuery(callback: () => void) {
+  const mql = window.matchMedia(DESKTOP_MEDIA_QUERY);
+  mql.addEventListener("change", callback);
+  return () => mql.removeEventListener("change", callback);
+}
+
+function getIsDesktop() {
+  return window.matchMedia(DESKTOP_MEDIA_QUERY).matches;
+}
+
+// No viewport on the server — default to desktop.
+function getServerIsDesktop() {
+  return true;
+}
 
 export interface ResultCardProps {
   id?: number | string;
@@ -165,6 +183,11 @@ export default function ResultCard({
   logoColor,
   schoolUrl,
 }: ResultCardProps) {
+  const isDesktop = useSyncExternalStore(
+    subscribeToDesktopQuery,
+    getIsDesktop,
+    getServerIsDesktop,
+  );
   const formattedSchoolUrl = toSafeHttpUrl(schoolUrl);
   const hasSatData = !!satAct && satAct !== "N/A";
 
@@ -450,7 +473,8 @@ export default function ResultCard({
   return (
     <>
       {/* ==================== LAPTOP / DESKTOP VIEW (UNCHANGED ORIGINAL) ==================== */}
-      <div className="hidden md:block bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+      {isDesktop && (
+      <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
         {/* Top Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex gap-4 items-start">
@@ -665,9 +689,11 @@ export default function ResultCard({
           </div>
         </div>
       </div>
+      )}
 
       {/* ==================== MOBILE VIEW (ULTRA-COMPACT SPACE SAVING) ==================== */}
-      <div className="md:hidden bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col gap-2 max-w-full">
+      {!isDesktop && (
+      <div className="bg-white border border-gray-100 rounded-xl p-2.5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col gap-2 max-w-full">
         {/* 1. Header Row */}
         <div className="flex items-start justify-between gap-2 min-w-0">
           <div className="flex gap-2 items-center min-w-0 flex-1">
@@ -883,6 +909,7 @@ export default function ResultCard({
           </div>
         </div>
       </div>
+      )}
 
       {/* Profile/Fit Score Modal */}
       {showModal && (

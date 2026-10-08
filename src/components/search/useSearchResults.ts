@@ -42,7 +42,9 @@ export function useSearchResults(initialData?: ServerSearchBundle) {
   // null until Firebase has restored the session. Treated as anonymous (the
   // stricter tier) meanwhile; the backend decides what each tier really gets.
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    searchParams.get("view") === "grid" ? "grid" : "list",
+  );
   const [retryNonce, setRetryNonce] = useState(0);
   const retry = useCallback(() => setRetryNonce((n) => n + 1), []);
 

@@ -29,6 +29,8 @@ export default function CourseSummarySideCard({
   const [expanded, setExpanded] = useState(false);
   const credentialInfo = getCredentialLevelInfo(credentialLevel);
 
+  const safeUrl = toSafeHttpUrl(schoolUrl);
+
   const handleApplyClick = () => {
     // Client-side analytics event
     trackEvent("apply_now_click", {
@@ -151,15 +153,25 @@ export default function CourseSummarySideCard({
       )}
 
       {/* CTA */}
-      <a
-        href={toSafeHttpUrl(schoolUrl) ?? "#"}
-        onClick={handleApplyClick}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full text-center rounded-[16px] bg-gradient-to-r from-[#2b55ff] to-[#9333ea] py-4 text-[15px] font-black text-white hover:opacity-95 hover:shadow-lg active:scale-[0.99] transition-all shadow-md shadow-blue-500/10 block"
-      >
-        Apply Now
-      </a>
+      {safeUrl ? (
+        <a
+          href={safeUrl}
+          onClick={handleApplyClick}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full text-center rounded-[16px] bg-gradient-to-r from-[#2b55ff] to-[#9333ea] py-4 text-[15px] font-black text-white hover:opacity-95 hover:shadow-lg active:scale-[0.99] transition-all shadow-md shadow-blue-500/10 block"
+        >
+          Apply Now
+        </a>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className="w-full text-center rounded-[16px] bg-slate-200 py-4 text-[15px] font-black text-slate-400 cursor-not-allowed block"
+        >
+          Apply Now
+        </button>
+      )}
     </div>
   );
 }

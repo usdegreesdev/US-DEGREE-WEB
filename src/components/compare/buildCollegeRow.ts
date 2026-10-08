@@ -8,8 +8,8 @@ import { toSafeHttpUrl } from "@/lib/url/httpUrl";
 // academics.graduationRate arrives as an already-scaled percentage (e.g.
 // 31.69); College.graduationRate is a fraction, matching acceptanceRate and
 // every renderer in desktop/rows + mobile/sections that does `rate * 100`.
-function toFraction(percent: number | null): number | null {
-  return percent === null ? null : percent / 100;
+function toFraction(percent: number | null | undefined): number | null {
+  return percent === null || percent === undefined ? null : percent / 100;
 }
 
 function deriveLogo(schoolUrl: string | null): string {
@@ -50,7 +50,7 @@ export function buildCollegeRow(entryId: string, ctx: BuildContext): College {
     ? matchedStored?.cipCode || "default"
     : entryCipCode;
   const programInfo = ctx.entryProgramsMap[entryId];
-  const selectedProgram = base?.programs.selectedProgram ?? undefined;
+  const selectedProgram = base?.programs?.selectedProgram ?? undefined;
   const programName =
     cipCode === "default"
       ? ""
@@ -97,16 +97,16 @@ export function buildCollegeRow(entryId: string, ctx: BuildContext): College {
     location,
     isPrivate,
     tuitionInState: base?.tuitionInState ?? null,
-    tuitionOutOfState: base?.cost.tuitionOutState ?? null,
+    tuitionOutOfState: base?.cost?.tuitionOutState ?? null,
     acceptanceRate: base?.acceptanceRate ?? null,
-    satMin: base?.academics.satRangeLow ?? null,
-    satMax: base?.academics.satRangeHigh ?? null,
-    graduationRate: base ? toFraction(base.academics.graduationRate) : null,
+    satMin: base?.academics?.satRangeLow ?? null,
+    satMax: base?.academics?.satRangeHigh ?? null,
+    graduationRate: toFraction(base?.academics?.graduationRate),
     medianSalary:
       resolveSalaryValue(selectedProgram?.earnings) ??
-      resolveSalaryValue(base?.outcomes.avgSalary) ??
+      resolveSalaryValue(base?.outcomes?.avgSalary) ??
       null,
-    studentPopulation: base?.students.size ?? null,
+    studentPopulation: base?.students?.size ?? null,
     image:
       "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=800&auto=format&fit=crop",
     schoolUrl,
