@@ -22,6 +22,7 @@ export default function CompleteProfileAlert({
   return (
     <Alert
       type="info"
+      closable
       className="rounded-2xl border border-blue-200/80 bg-blue-50/60 p-3.5 sm:p-5 shadow-xs mb-6 sm:mb-8"
       title={
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 w-full">
