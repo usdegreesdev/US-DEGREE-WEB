@@ -25,10 +25,11 @@ export function useHeroSearch() {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const stateOptions = await fetchStateOptions();
+        const [stateOptions, credentialOptions] = await Promise.all([
+          fetchStateOptions(),
+          fetchCredentialOptions(),
+        ]);
         if (stateOptions) setStates(stateOptions);
-
-        const credentialOptions = await fetchCredentialOptions();
         if (credentialOptions) setLevels(credentialOptions);
       } catch (error) {
         console.error("Error fetching options:", error);

@@ -72,7 +72,22 @@ export default function HeroSearchCard({
   return (
     <div className={styles.container}>
       <div className={styles.grid}>
-        {/* 1. Credential Level Field */}
+        {/* 1. State Field */}
+        <div className="flex flex-col">
+          <label className={styles.label}>States</label>
+          <Select
+            showSearch
+            size={styles.selectSize}
+            placeholder="Select a State"
+            options={states}
+            value={selectedState}
+            loading={isStatesLoading}
+            onChange={handleStateChange}
+            className="w-full"
+          />
+        </div>
+
+        {/* 2. Credential Level Field */}
         <div className="flex flex-col">
           <label className={styles.label}>Credential Level</label>
           <Select
@@ -86,7 +101,7 @@ export default function HeroSearchCard({
           />
         </div>
 
-        {/* 2. Course / Field of Study Field */}
+        {/* 3. Course / Field of Study Field */}
         <div className="flex flex-col">
           <label className={styles.label}>Course / Field of Study</label>
           <Select
@@ -98,21 +113,6 @@ export default function HeroSearchCard({
             loading={isCoursesLoading}
             onChange={setSelectedCourse}
             disabled={!selectedLevel && !selectedState}
-            className="w-full"
-          />
-        </div>
-
-        {/* 3. States Field */}
-        <div className="flex flex-col">
-          <label className={styles.label}>States</label>
-          <Select
-            showSearch
-            size={styles.selectSize}
-            placeholder="Select a State"
-            options={states}
-            value={selectedState}
-            loading={isStatesLoading}
-            onChange={handleStateChange}
             className="w-full"
           />
         </div>
