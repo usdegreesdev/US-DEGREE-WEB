@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
@@ -51,6 +51,10 @@ export default function ProgramSearchBand({
   const [visible, setVisible] = useState(false);
   const [errored, setErrored] = useState(false);
   const [navigatingKey, setNavigatingKey] = useState<string | null>(null);
+  // Pending state resets on its own once the navigation settles, so the result
+  // buttons are never left permanently disabled (the page stays mounted when
+  // only the query string changes).
+  const [isNavigating, startTransition] = useTransition();
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
@@ -133,7 +137,9 @@ export default function ProgramSearchBand({
   // (see ResultCard's `universityHref`) so the program detail page renders with
   // the same full context instead of just the bare CIP code.
   const handleResultClick = (program: ProgramResult) => {
-    setNavigatingKey(`${program.title}-${program.credential_title}`);
+    setNavigatingKey(
+      `${program.cip_code}-${program.title}-${program.credential_title}`,
+    );
     const [city = "", state = ""] = (location || "").split(", ");
     const params = new URLSearchParams();
     params.set("cip", program.cip_code);
@@ -149,7 +155,9 @@ export default function ProgramSearchBand({
     if (avgSalary != null) params.set("avgSalary", String(avgSalary));
     if (netRoi20Yr != null) params.set("roi", String(netRoi20Yr));
 
-    router.push(`/university/${universityId}?${params.toString()}`);
+    startTransition(() => {
+      router.push(`/university/${universityId}?${params.toString()}`);
+    });
   };
 
   const hasSearched = searchQuery.trim() !== "" || credentialTitle !== "all";
@@ -210,13 +218,13 @@ export default function ProgramSearchBand({
       )}
 
       {results.map((program) => {
-        const key = `${program.title}-${program.credential_title}`;
-        const isNavigating = navigatingKey === key;
+        const key = `${program.cip_code}-${program.title}-${program.credential_title}`;
+        const isThisNavigating = isNavigating && navigatingKey === key;
         return (
           <button
             key={key}
             onClick={() => handleResultClick(program)}
-            disabled={navigatingKey !== null}
+            disabled={isNavigating}
             className="group flex min-h-[58px] items-center justify-between rounded-[8px] bg-white px-4 text-left shadow-sm transition hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span>
@@ -227,7 +235,7 @@ export default function ProgramSearchBand({
                 {program.credential_title}
               </span>
             </span>
-            {isNavigating ? (
+            {isThisNavigating ? (
               <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
             ) : (
               <span className="text-sm font-black text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-blue-600">
