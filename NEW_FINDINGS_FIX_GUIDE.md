@@ -164,7 +164,7 @@ Use `getFriendlyErrorMessage` / a stable copy, not a raw backend body (original 
 ### Current behavior (confirmed on https://us-degree-web.vercel.app/)
 
 - **Welcome Back** shows Google + Apple and **no** 18+ checkbox.
-- **Create Account** shows the checkbox. Google without it correctly shows *You must confirm you are 18 or older to continue*.
+- **Create Account** shows the checkbox. Google without it correctly shows *Please confirm you are 18 or older*.
 - `handleGoogleSignIn` / `handleAppleSignIn` only gate when `mode === "signup"`.
 - First-time users almost always click Google on Welcome Back.
 - Apple always posts `age_consent: !!ageConsent`, so Login sends **`false`** and can overwrite an existing `true`.
