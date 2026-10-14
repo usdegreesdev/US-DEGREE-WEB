@@ -223,7 +223,7 @@ export function useAuthForm({
       return;
     }
     if (mode === "signup" && !ageConsent) {
-      setError("You must confirm you are 18 or older to continue");
+      setError("Please confirm you are 18 or older");
       return;
     }
 
@@ -265,7 +265,7 @@ export function useAuthForm({
     // Google/Apple can create an account from either tab, so both must clear
     // the same 18+ gate as email signup before Firebase is ever called.
     if (!ageConsent) {
-      setError("You must confirm you are 18 or older to continue");
+      setError("Please confirm you are 18 or older");
       return;
     }
     setIsLoading(true);
@@ -285,7 +285,7 @@ export function useAuthForm({
   const handleAppleSignIn = async () => {
     if (isLoading) return;
     if (!ageConsent) {
-      setError("You must confirm you are 18 or older to continue");
+      setError("Please confirm you are 18 or older");
       return;
     }
     setIsLoading(true);
