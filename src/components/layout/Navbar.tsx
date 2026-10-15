@@ -8,6 +8,7 @@ import { useCompareCount } from "@/hooks/useCompareCount";
 import { useEmailVerification } from "@/hooks/useEmailVerification";
 import { useLoginModal } from "@/hooks/useLoginModal";
 import { useFitLoginRedirect } from "@/hooks/useFitLoginRedirect";
+import { useSaveLoginRedirect } from "@/hooks/useSaveLoginRedirect";
 
 import LoginModal from "../auth/LoginModal";
 import MobileNavDock from "./MobileNavDock";
@@ -38,6 +39,7 @@ const Navbar = () => {
   } = useLoginModal(user);
 
   useFitLoginRedirect(user);
+  useSaveLoginRedirect(user);
 
   const handleSignOut = async () => {
     await logout();

@@ -18,6 +18,10 @@ import {
 } from "../search/useSavedColleges";
 import type { SavedCollege } from "@/lib/auth/api";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { writeSaveLoginIntent } from "@/lib/saveLoginIntent";
+import { usePendingSave } from "@/hooks/usePendingSave";
 
 export default function UniversityHero({
   id,
@@ -73,30 +77,59 @@ export default function UniversityHero({
   const isSaved = useSavedCollege(compareId);
   const [isSaving, setIsSaving] = useState(false);
 
+  const { user } = useAuth();
+  const router = useRouter();
+
+  // Enriched optimistic record so the Saved Colleges grid shows the card
+  // instantly with a working "Visit website" link and formatted metrics.
+  const buildSavedRecord = (): SavedCollege => {
+    const admissionNum = parseFloat(admissionRate.replace(/[^0-9.]/g, ""));
+    const hasCip = !!cipCode && cipCode !== "N/A" && cipCode !== "default";
+    return {
+      unitid: compareId,
+      name,
+      location,
+      tuitionFee: tuitionData?.tuition?.tuition_in_state ?? null,
+      acceptanceRate: Number.isNaN(admissionNum) ? null : admissionNum,
+      createdAt: new Date().toISOString(),
+      schoolUrl: formattedSchoolUrl,
+      cipCode: hasCip ? cipCode : null,
+      programName: hasCip ? degree || null : null,
+      credentialLevel: hasCip ? (credentialLevel ?? null) : null,
+      credentialTitle: hasCip ? credentialTitle || null : null,
+    };
+  };
+
+  // A signed-out user who clicked Save is sent to login; once they return
+  // authenticated this college saves itself, flipping the button to "saved".
+  usePendingSave(user, compareId, (outcome) => {
+    if ("saved" in outcome) {
+      message.success(`Saved ${name} to your colleges.`);
+      void reloadSaved();
+    } else if (outcome.error instanceof SavedLimitError) {
+      message.warning(outcome.error.message);
+    } else {
+      message.error("Could not update saved colleges. Please try again.");
+    }
+  });
+
   const handleToggleSave = async () => {
     if (!compareId) {
       message.error("This college can't be saved (missing identifier).");
       return;
     }
+    if (!user) {
+      writeSaveLoginIntent({
+        url: window.location.pathname + window.location.search,
+        unitid: compareId,
+        record: buildSavedRecord(),
+      });
+      router.push("/?login=1");
+      return;
+    }
     setIsSaving(true);
     try {
-      // Enriched optimistic record so the Saved Colleges grid shows the card
-      // instantly with a working "Visit website" link and formatted metrics.
-      const admissionNum = parseFloat(admissionRate.replace(/[^0-9.]/g, ""));
-      const hasCip = !!cipCode && cipCode !== "N/A" && cipCode !== "default";
-      const record: SavedCollege = {
-        unitid: compareId,
-        name,
-        location,
-        tuitionFee: tuitionData?.tuition?.tuition_in_state ?? null,
-        acceptanceRate: Number.isNaN(admissionNum) ? null : admissionNum,
-        createdAt: new Date().toISOString(),
-        schoolUrl: formattedSchoolUrl,
-        cipCode: hasCip ? cipCode : null,
-        programName: hasCip ? degree || null : null,
-        credentialLevel: hasCip ? (credentialLevel ?? null) : null,
-        credentialTitle: hasCip ? credentialTitle || null : null,
-      };
+      const record = buildSavedRecord();
       const nowSaved = await toggleSaved(compareId, record);
       if (nowSaved) {
         message.success(`Saved ${name} to your colleges.`);

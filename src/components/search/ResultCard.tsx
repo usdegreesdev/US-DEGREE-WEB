@@ -24,6 +24,8 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
+import { writeSaveLoginIntent } from "@/lib/saveLoginIntent";
+import { usePendingSave } from "@/hooks/usePendingSave";
 import { calculateFitScore, parseAdmissionRate } from "./fitScore";
 import ResultCardDesktop from "./ResultCardDesktop";
 import ResultCardMobile from "./ResultCardMobile";
@@ -125,6 +127,31 @@ export default function ResultCard({
   const isSavedCollege = useSavedCollege(unitid);
   const [isSaving, setIsSaving] = useState(false);
 
+  const buildSavedRecord = (id: string): SavedCollege => ({
+    unitid: id,
+    name: university,
+    location,
+    tuitionFee: null,
+    acceptanceRate: parseAdmissionRate(admissionRate),
+    createdAt: new Date().toISOString(),
+    schoolUrl: schoolUrl ?? null,
+    cipCode: cipCode || null,
+    programName: cipCode ? degree : null,
+    credentialLevel: cipCode ? (credentialLevel ?? null) : null,
+    credentialTitle:
+      cipCode && specializations !== "N/A" ? specializations : null,
+  });
+
+  // A signed-out user who clicked Save is sent to login; once they return
+  // authenticated this card saves itself, flipping the button to "saved".
+  usePendingSave(user, unitid, (outcome) => {
+    if ("saved" in outcome)
+      message.success(`Saved ${university} to your colleges.`);
+    else if (outcome.error instanceof SavedLimitError)
+      message.warning(outcome.error.message);
+    else message.error("Could not update saved colleges. Please try again.");
+  });
+
   const handleToggleSave = async () => {
     // A card with no unitid cannot be saved — report it.
     if (!unitid) {
@@ -134,22 +161,18 @@ export default function ResultCard({
       message.error("This college can't be saved (missing identifier).");
       return;
     }
+    if (!user) {
+      writeSaveLoginIntent({
+        url: window.location.pathname + window.location.search,
+        unitid,
+        record: buildSavedRecord(unitid),
+      });
+      router.push("/?login=1");
+      return;
+    }
     setIsSaving(true);
     try {
-      const record: SavedCollege = {
-        unitid,
-        name: university,
-        location,
-        tuitionFee: null,
-        acceptanceRate: parseAdmissionRate(admissionRate),
-        createdAt: new Date().toISOString(),
-        schoolUrl: schoolUrl ?? null,
-        cipCode: cipCode || null,
-        programName: cipCode ? degree : null,
-        credentialLevel: cipCode ? (credentialLevel ?? null) : null,
-        credentialTitle:
-          cipCode && specializations !== "N/A" ? specializations : null,
-      };
+      const record = buildSavedRecord(unitid);
       const nowSaved = await toggleSaved(unitid, record);
       message.success(
         nowSaved
