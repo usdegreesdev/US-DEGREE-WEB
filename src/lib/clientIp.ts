@@ -22,7 +22,8 @@ export const STRIPPED_CLIENT_HEADERS = [
  * Which x-forwarded-for entry is the visitor. Depends on the host, because
  * x-forwarded-for is client-controllable up to the first trusted proxy:
  *
- * - Vercel (the assumed host — NEXT_PUBLIC_SITE_URL is a vercel.app origin):
+ * - Vercel (the default when TRUSTED_PROXY_HOPS is unset; NOT safe elsewhere,
+ *   so hosts like AWS must set TRUSTED_PROXY_HOPS):
  *   the platform overwrites any client-supplied x-forwarded-for, so the FIRST
  *   hop is the visitor. This is the default (TRUSTED_PROXY_HOPS unset/0).
  * - Any other host: a client can prepend arbitrary entries, so the first hop
