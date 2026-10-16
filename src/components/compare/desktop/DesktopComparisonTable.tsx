@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/context/AuthContext";
+import { SignInCard } from "../SignInGate";
 import { College } from "@/types/university/ComparisonTable";
 import DesktopCollegeHeader from "./DesktopCollegeHeader";
 import ProgramRow from "./rows/ProgramRow";
@@ -38,8 +40,11 @@ export default function DesktopComparisonTable({
   removingIds,
   onViewDetails,
 }: DesktopComparisonTableProps) {
+  const { user, loading } = useAuth();
+  const isGated = !user && !loading;
+
   return (
-    <div className="hidden md:block overflow-x-auto overflow-y-clip rounded-[1.5rem] md:rounded-[2rem] border border-gray-100 shadow-sm bg-white">
+    <div className="hidden md:block relative overflow-x-auto overflow-y-clip compare-glass">
       <table className="w-full text-left border-collapse table-fixed min-w-[768px] md:min-w-[1000px]">
         <thead>
           <tr className="border-b border-gray-100 bg-[#FAFBFD]/90 backdrop-blur sticky z-20">
@@ -60,7 +65,11 @@ export default function DesktopComparisonTable({
           </tr>
         </thead>
 
-        <tbody className="divide-y divide-gray-100">
+        <tbody
+          data-gated={isGated ? "true" : undefined}
+          inert={isGated}
+          className="divide-y divide-gray-100"
+        >
           <ProgramRow colleges={comparedColleges} />
           <TuitionInStateRow colleges={comparedColleges} />
           <TuitionOutOfStateRow
@@ -84,6 +93,11 @@ export default function DesktopComparisonTable({
           <ActionsRow colleges={comparedColleges} onViewDetails={onViewDetails} />
         </tbody>
       </table>
+      {isGated && (
+        <div className="absolute inset-x-0 bottom-0 top-24 z-40 flex items-center justify-center px-4 pointer-events-none">
+          <SignInCard />
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { College } from "@/types/university/ComparisonTable";
 import MobileCollegeCard from "./MobileCollegeCard";
+import SignInGate from "../SignInGate";
 import ProgramSection from "./sections/ProgramSection";
 import TuitionInStateSection from "./sections/TuitionInStateSection";
 import TuitionOutOfStateSection from "./sections/TuitionOutOfStateSection";
@@ -52,7 +53,7 @@ export default function MobileComparisonView({
         ))}
       </div>
 
-      <div className="space-y-4">
+      <SignInGate className="space-y-4">
         <ProgramSection colleges={comparedColleges} onViewDetails={onViewDetails} />
         <TuitionInStateSection colleges={comparedColleges} onViewDetails={onViewDetails} />
         <TuitionOutOfStateSection
@@ -76,7 +77,7 @@ export default function MobileComparisonView({
           highestSalaryId={highlights.highestSalaryId}
         />
         <EnrollmentSection colleges={comparedColleges} onViewDetails={onViewDetails} />
-      </div>
+      </SignInGate>
     </div>
   );
 }

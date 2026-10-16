@@ -36,7 +36,7 @@ export default function CompareClientContent({
   } = useCompareColleges(initialBundle);
 
   return (
-    <div className="bg-[#FAFBFD] min-h-screen pt-28 pb-6 lg:pb-20 font-sans">
+    <div className="bg-white min-h-screen pt-28 pb-6 lg:pb-20 font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* 1. Header */}
         <CompareHeader

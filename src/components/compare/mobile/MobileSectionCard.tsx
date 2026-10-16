@@ -12,7 +12,7 @@ export default function MobileSectionCard({ title, subtitle, children }: MobileS
         <h4 className="font-extrabold text-slate-800 text-sm">{title}</h4>
         <p className="text-[10px] text-gray-400 font-semibold">{subtitle}</p>
       </div>
-      <div className="divide-y divide-gray-100">{children}</div>
+      <div className="compare-values divide-y divide-gray-100">{children}</div>
     </div>
   );
 }
