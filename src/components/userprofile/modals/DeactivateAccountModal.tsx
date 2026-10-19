@@ -87,7 +87,7 @@ export default function DeactivateAccountModal({
       }
       open={open}
       onCancel={handleClose}
-      maskClosable={!isSubmitting}
+      mask={{ closable: !isSubmitting }}
       closable={!isSubmitting}
       footer={null}
       destroyOnHidden
