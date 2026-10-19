@@ -336,6 +336,13 @@ export default function CompareSearchBar({
                   label: p.title,
                 }))}
               />
+              {allPrograms.length > 0 && (
+                <span className="block mt-1 text-[11px] text-gray-400">
+                  {programResults.length < allPrograms.length
+                    ? `Showing ${programResults.length} of ${allPrograms.length} programs — type to narrow.`
+                    : `Showing all ${allPrograms.length} programs — type to narrow.`}
+                </span>
+              )}
             </span>
           </Tooltip>
         </div>

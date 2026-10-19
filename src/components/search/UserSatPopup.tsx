@@ -184,10 +184,10 @@ export default function UserSatPopup({
 
           {/* Disclaimer */}
           <div className="text-[9px] text-slate-400 text-center italic">
-            *Disclaimer: These values are only approximate.
+          *These values are only approximate.
           </div>
         </div>
-
+ 
         {/* Modal Actions */}
         <div className="bg-slate-50 px-5 py-3 flex justify-between items-center border-t border-slate-100">
           <div>

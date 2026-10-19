@@ -22,7 +22,6 @@ export const PROGRAM_OPTIONS = [
 export const DEACTIVATION_REASONS = [
   { value: "1", label: "I found another college platform" },
   { value: "2", label: "I no longer plan to attend college" },
-  { value: "3", label: "Too many emails/notifications" },
-  { value: "4", label: "Privacy concerns" },
-  { value: "5", label: "Other" },
+  { value: "3", label: "Privacy concerns" },
+  { value: "4", label: "Other" },
 ];

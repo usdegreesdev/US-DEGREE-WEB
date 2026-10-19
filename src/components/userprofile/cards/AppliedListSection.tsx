@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Card, Table, Button, Empty, Alert, Space} from "antd";
+import { Card, Table, Button, Empty, Alert, Space } from "antd";
 import { SendOutlined, LinkOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useRouter } from "next/navigation";
@@ -57,7 +57,8 @@ export default function AppliedListSection() {
         setTotal(data.total);
       } catch (err) {
         console.error("Failed to load applied list:", err);
-        if (active) setError("Could not load your applied list. Please try again.");
+        if (active)
+          setError("Could not load your applied list. Please try again.");
       } finally {
         if (active) setLoading(false);
       }
@@ -119,7 +120,7 @@ export default function AppliedListSection() {
       },
     },
     {
-      title: "Applied At",
+      title: "Visited On",
       dataIndex: "clickedAt",
       key: "clickedAt",
       width: 180,
@@ -137,7 +138,7 @@ export default function AppliedListSection() {
       title={
         <div className="flex items-center gap-2 py-1">
           <SendOutlined className="text-[#3F51B5]" />
-          <span className="font-bold">Applied List ({total})</span>
+          <span className="font-bold">Visited List ({total})</span>
         </div>
       }
       variant="borderless"

@@ -30,6 +30,7 @@ export default function DeactivateAccountModal({
   const [understandDeactivateCheckbox, setUnderstandDeactivateCheckbox] =
     useState(false);
   const [deactivateReasonCode, setDeactivateReasonCode] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetLocalState = () => {
     setUnderstandDeactivateCheckbox(false);
@@ -38,6 +39,7 @@ export default function DeactivateAccountModal({
   };
 
   const handleClose = () => {
+    if (isSubmitting) return;
     resetLocalState();
     onClose();
   };
@@ -64,8 +66,13 @@ export default function DeactivateAccountModal({
       acknowledged: true,
     };
 
-    await onConfirm(payload);
-    resetLocalState();
+    setIsSubmitting(true);
+    try {
+      await onConfirm(payload);
+      resetLocalState();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -80,6 +87,8 @@ export default function DeactivateAccountModal({
       }
       open={open}
       onCancel={handleClose}
+      maskClosable={!isSubmitting}
+      closable={!isSubmitting}
       footer={null}
       destroyOnHidden
     >
@@ -159,10 +168,13 @@ export default function DeactivateAccountModal({
         </Form.Item>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-neutral-100">
-          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
           <Button
             danger
             type="primary"
+            loading={isSubmitting}
             disabled={!understandDeactivateCheckbox}
             onClick={handleConfirm}
             style={{ borderRadius: "8px" }}

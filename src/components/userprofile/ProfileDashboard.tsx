@@ -118,27 +118,35 @@ export default function ProfileDashboard({ authUser }: ProfileDashboardProps) {
       </Row>
 
       {/* Match Engine Recommendations */}
-      <CollegeMatchesSection matches={matches} loading={matchesLoading} />
+      <div>
+        <CollegeMatchesSection matches={matches} loading={matchesLoading} />
+      </div>
 
       {/* Saved Colleges + Applied List, side by side on wide screens and
           stacked below xl (the applied table needs the room). */}
-      <Row gutter={[24, 24]} align="stretch">
-        <Col xs={24} xl={12}>
-          <SavedCollegesSection
-            view={savedCollegesView}
-            onViewChange={setSavedCollegesView}
-          />
-        </Col>
-        <Col xs={24} xl={12}>
-          <AppliedListSection />
-        </Col>
-      </Row>
+      <div>
+        <Row gutter={[24, 24]} align="stretch">
+          <Col xs={24} xl={12}>
+            <SavedCollegesSection
+              view={savedCollegesView}
+              onViewChange={setSavedCollegesView}
+            />
+          </Col>
+          <Col xs={24} xl={12}>
+            <AppliedListSection />
+          </Col>
+        </Row>
+      </div>
 
       {/* Generated Reports */}
-      <MyReportsSection />
+      <div>
+        <MyReportsSection />
+      </div>
 
       {/* Danger Zone */}
-      <DangerZoneCard onDeactivate={() => setIsDeactivateOpen(true)} />
+      <div>
+        <DangerZoneCard onDeactivate={() => setIsDeactivateOpen(true)} />
+      </div>
 
       {/* Profile & Security Modals */}
       <EditProfileModal
