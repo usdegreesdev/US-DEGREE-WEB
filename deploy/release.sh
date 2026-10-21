@@ -10,16 +10,41 @@
 #   current            symlink -> releases/<name>   (what PM2 runs)
 #   previous           file holding the name of the last known-good release
 #   shared/            .env.production and anything that must survive deploys
-# Only `current`/`previous` and old releases are ever touched; `shared/` and the
-# legacy /var/www/usdegrees/web directory are never modified or deleted.
+# Only `current`/`previous` and old releases are ever touched; an existing
+# `shared/.env.production` is never overwritten, and the legacy
+# /var/www/usdegrees/web directory is only ever read, never modified or deleted.
 set -Eeuo pipefail
 
 BASE="/var/www/usdegrees/web-releases"
 APP="usdegrees-web"
 KEEP=5
 ENV_FILE="$BASE/shared/.env.production"
+LEGACY_DIR="/var/www/usdegrees/web"
 
 log() { printf '[release] %s\n' "$*"; }
+
+# First deploy only: seed the shared env file from the legacy checkout so the
+# cutover keeps the exact runtime config `npm start` had. Never overwrites.
+seed_env_file() {
+  [[ -f "$ENV_FILE" ]] && return 0
+  [[ -f "$LEGACY_DIR/.env.production" ]] || return 1
+  install -d -m 700 "$BASE/shared"
+  install -m 600 "$LEGACY_DIR/.env.production" "$ENV_FILE"
+  log "seeded $ENV_FILE from $LEGACY_DIR/.env.production"
+}
+
+# First deploy only: if the very first standalone release fails and there is no
+# earlier release to fall back to, bring the legacy `npm start` process back
+# rather than leaving the site down.
+restore_legacy() {
+  [[ -f "$LEGACY_DIR/.next/BUILD_ID" ]] || return 1
+  log "restoring legacy npm start process from $LEGACY_DIR"
+  rm -f -- "$BASE/current"
+  pm2 delete "$APP" >/dev/null 2>&1 || true
+  pm2 start npm --name "$APP" --cwd "$LEGACY_DIR" -- start
+  pm2 save >/dev/null
+  health_check
+}
 
 app_port() {
   local p
@@ -97,8 +122,10 @@ prune_old() {
 case "${1:-}" in
   activate)
     name="${2:?release name required}"
-    [[ -f "$BASE/releases/$name/server.js" ]] || { log "release $name is incomplete"; exit 1; }
-    [[ -f "$ENV_FILE" ]] || { log "missing $ENV_FILE — see setup docs"; exit 1; }
+    for f in server.js .next/BUILD_ID .next/static public ecosystem.config.cjs; do
+      [[ -e "$BASE/releases/$name/$f" ]] || { log "release $name is incomplete (missing $f)"; exit 1; }
+    done
+    seed_env_file || { log "missing $ENV_FILE — see setup docs"; exit 1; }
 
     old=$(current_name)
     [[ "$old" == "." || "$old" == "/" ]] && old=""
@@ -114,6 +141,8 @@ case "${1:-}" in
       if [[ -n "$old" && -d "$BASE/releases/$old" ]]; then
         echo "$old" > "$BASE/previous"
         do_rollback && log "rolled back to $old" || log "ROLLBACK ALSO FAILED — manual intervention needed"
+      else
+        restore_legacy && log "legacy process restored" || log "LEGACY RESTORE FAILED — manual intervention needed"
       fi
       exit 1
     fi

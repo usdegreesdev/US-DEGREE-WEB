@@ -94,7 +94,11 @@ jobs:
           mkdir -p .next/standalone/.next
           cp -r .next/static .next/standalone/.next/static
           cp deploy/ecosystem.config.cjs .next/standalone/ecosystem.config.cjs
+          echo "$GITHUB_SHA" > .next/standalone/REVISION
           find .next/standalone -maxdepth 2 -name '.env*' -print -delete
+          for f in server.js .next/BUILD_ID .next/static public; do
+            [ -e ".next/standalone/$f" ] || { echo "::error::bundle is missing $f"; exit 1; }
+          done
           tar -czf release.tar.gz -C .next/standalone .
 
       - uses: actions/upload-artifact@v4
