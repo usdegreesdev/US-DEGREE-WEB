@@ -46,6 +46,15 @@ const STEP_FIELDS: string[][] = [
   ],
 ];
 
+const MIN_GRADUATION_YEAR = 2000;
+const GRADUATION_YEAR_MESSAGE = "Please enter a valid graduation year.";
+
+// Whole number >= 2000; no upper bound so future graduation years are allowed.
+const isValidGraduationYear = (value: unknown): value is number =>
+  typeof value === "number" &&
+  Number.isInteger(value) &&
+  value >= MIN_GRADUATION_YEAR;
+
 const STEP_TITLES = [
   "Student Profile Information",
   "High School & Test Performance",
@@ -59,6 +68,9 @@ export default function EditProfileModal({
   onSave,
 }: EditProfileModalProps) {
   const [form] = Form.useForm();
+  const graduationYear = Form.useWatch("graduationYear", form);
+  const canDecrementYear =
+    typeof graduationYear === "number" && graduationYear > MIN_GRADUATION_YEAR;
   const [currentStep, setCurrentStep] = useState(0);
   const [validating, setValidating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -221,18 +233,29 @@ export default function EditProfileModal({
               <Form.Item
                 name="graduationYear"
                 label="Graduation Year"
+                validateTrigger={["onChange", "onBlur"]}
                 rules={[
-                  { required: true, message: "Required" },
                   {
-                    type: "number",
+                    validator: (_, value) =>
+                      isValidGraduationYear(value)
+                        ? Promise.resolve()
+                        : Promise.reject(new Error(GRADUATION_YEAR_MESSAGE)),
                   },
                 ]}
               >
+                {/* `min` is deliberately not set: antd would clamp typed values
+                    (e.g. -1 -> 2000) and hide the validation error. The down
+                    arrow is disabled via CSS at the minimum / when empty, and
+                    the validator enforces the range. */}
                 <InputNumber
                   step={1}
                   precision={0}
                   placeholder="e.g. 2026"
-                  className="w-full"
+                  className={`w-full ${
+                    canDecrementYear
+                      ? ""
+                      : "[&_.ant-input-number-action-down]:pointer-events-none [&_.ant-input-number-action-down]:opacity-40"
+                  }`}
                 />
               </Form.Item>
             </Col>
