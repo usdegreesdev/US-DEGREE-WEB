@@ -55,6 +55,9 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle (.next/standalone) so CI can build once and
+  // ship it to the VPS without node_modules; run with `node server.js`.
+  output: "standalone",
   async headers() {
     return [
       {

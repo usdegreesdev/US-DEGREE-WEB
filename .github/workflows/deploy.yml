@@ -1,0 +1,175 @@
+name: Deploy
+
+# Builds on the runner, then ships the standalone bundle to a new release
+# directory on the VPS and flips the `current` symlink only after a successful
+# upload. Frontend only: never touches usdegrees-api.
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+
+# One deploy at a time; never cancel one mid-flight (it could leave a
+# half-activated release).
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  SITE_URL: https://launch.usdegrees.com
+  REMOTE_BASE: /var/www/usdegrees/web-releases
+
+jobs:
+  build:
+    name: Verify and build
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.meta.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+      # NEXT_PUBLIC_* values are inlined into the client bundle at build time,
+      # so they must exist here (repository *variables*, not secrets: they are
+      # public by design). Fail fast rather than ship a bundle with blanks.
+      - name: Check build-time variables
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_APPLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_APPLE_CLIENT_ID }}
+          NEXT_PUBLIC_APPLE_REDIRECT_URI: ${{ vars.NEXT_PUBLIC_APPLE_REDIRECT_URI }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+        run: |
+          missing=0
+          for v in NEXT_PUBLIC_FIREBASE_API_KEY NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
+                   NEXT_PUBLIC_FIREBASE_PROJECT_ID NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET \
+                   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID NEXT_PUBLIC_FIREBASE_APP_ID \
+                   NEXT_PUBLIC_APPLE_CLIENT_ID NEXT_PUBLIC_APPLE_REDIRECT_URI \
+                   NEXT_PUBLIC_SITE_URL; do
+            if [ -z "${!v}" ]; then echo "::error::Repository variable $v is not set"; missing=1; fi
+          done
+          exit $missing
+
+      # Only public build-time config goes in here. Server-only secrets
+      # (API_URL, PROXY_IP_SECRET, TRUSTED_PROXY_HOPS) stay on the VPS in the
+      # shared env file and are read at runtime.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_APPLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_APPLE_CLIENT_ID }}
+          NEXT_PUBLIC_APPLE_REDIRECT_URI: ${{ vars.NEXT_PUBLIC_APPLE_REDIRECT_URI }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+
+      - name: Name the release
+        id: meta
+        run: echo "release=$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # The standalone server does not copy public/ or .next/static; add them,
+      # plus the PM2 config. No env files are ever included.
+      - name: Assemble release bundle
+        run: |
+          cp -r public .next/standalone/public
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/static
+          cp deploy/ecosystem.config.cjs .next/standalone/ecosystem.config.cjs
+          find .next/standalone -maxdepth 2 -name '.env*' -print -delete
+          tar -czf release.tar.gz -C .next/standalone .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      RELEASE: ${{ needs.build.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+
+      # Host key is pinned from the VPS_KNOWN_HOSTS secret and verified strictly;
+      # there is no ssh-keyscan and no StrictHostKeyChecking=no.
+      - name: Configure SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          [ -n "$VPS_KNOWN_HOSTS" ] || { echo "::error::VPS_KNOWN_HOSTS secret is not set"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          {
+            echo "Host vps"
+            echo "  HostName $VPS_HOST"
+            echo "  User $VPS_USER"
+            echo "  Port ${VPS_PORT:-22}"
+            echo "  IdentityFile ~/.ssh/id_deploy"
+            echo "  IdentitiesOnly yes"
+            echo "  StrictHostKeyChecking yes"
+            echo "  UserKnownHostsFile ~/.ssh/known_hosts"
+            echo "  ServerAliveInterval 15"
+          } > ~/.ssh/config
+
+      # Upload into a brand-new release directory. The running release is not
+      # touched until the activate step.
+      - name: Upload release
+        run: |
+          ssh vps "mkdir -p '$REMOTE_BASE/incoming' '$REMOTE_BASE/releases/$RELEASE' '$REMOTE_BASE/shared'"
+          scp release.tar.gz "vps:$REMOTE_BASE/incoming/$RELEASE.tar.gz"
+          ssh vps "tar -xzf '$REMOTE_BASE/incoming/$RELEASE.tar.gz' -C '$REMOTE_BASE/releases/$RELEASE' && rm -f '$REMOTE_BASE/incoming/$RELEASE.tar.gz' && test -f '$REMOTE_BASE/releases/$RELEASE/server.js'"
+
+      # Flips `current`, restarts PM2, health-checks locally; the script rolls
+      # itself back and exits non-zero if that fails.
+      - name: Activate release
+        run: ssh vps "bash -s -- activate '$RELEASE'" < deploy/release.sh
+
+      - name: Public health check
+        id: health
+        run: |
+          for i in $(seq 1 10); do
+            code=$(curl -sSL -o /dev/null -w '%{http_code}' --max-time 15 "$SITE_URL/" || true)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 5
+          done
+          echo "::error::$SITE_URL did not return HTTP 200"
+          exit 1
+
+      - name: Roll back (public health check failed)
+        if: failure() && steps.health.outcome == 'failure'
+        run: ssh vps "bash -s -- rollback" < deploy/release.sh

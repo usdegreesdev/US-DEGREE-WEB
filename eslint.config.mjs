@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // VPS deploy tooling (CommonJS PM2 config, shell), not app code.
+    "deploy/**",
   ]),
 ]);
 
