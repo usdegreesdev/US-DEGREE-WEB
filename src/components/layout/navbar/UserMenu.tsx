@@ -3,16 +3,20 @@
 import { Dropdown, Avatar } from "antd";
 import type { MenuProps } from "antd";
 
+import ProBadge from "@/components/common/ProBadge";
+
 interface UserMenuProps {
   items: MenuProps["items"];
   avatarInitial: string;
   firstName: string;
+  isPro?: boolean;
 }
 
 export default function UserMenu({
   items,
   avatarInitial,
   firstName,
+  isPro = false,
 }: UserMenuProps) {
   return (
     <Dropdown
@@ -26,13 +30,20 @@ export default function UserMenu({
       >
         <Avatar
           size={32}
-          style={{ backgroundColor: "#3b5bdb", fontWeight: 600 }}
+          style={{
+            backgroundColor: "#3b5bdb",
+            fontWeight: 600,
+            ...(isPro && {
+              boxShadow: "0 0 0 2px #fff, 0 0 0 4px var(--color-pro-ring)",
+            }),
+          }}
         >
           {avatarInitial}
         </Avatar>
         <span className="text-[15px] font-semibold text-slate-600">
           Hi, {firstName}
         </span>
+        {isPro && <ProBadge />}
       </button>
     </Dropdown>
   );

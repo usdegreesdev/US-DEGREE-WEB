@@ -53,6 +53,11 @@ const ALLOWED_PATH_PREFIXES = [
   "compare/matrix",
   "compare/colleges",
   "report",
+  "billing/checkout-session",
+  "billing/credits",
+  "billing/payments",
+  "billing/checkout-status",
+  "me/billing",
   "analytics",
   "flag",
 ] as const;

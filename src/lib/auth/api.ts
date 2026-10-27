@@ -15,6 +15,7 @@
 import { auth } from "@/lib/firebase";
 import { getAppJwt, setAppJwt, clearAppJwt } from "./tokenStore";
 import { readApiError } from "./apiError";
+import type { BillingDetails, CheckoutStatus, Payment } from "@/types/billing";
 import { getCredentialLevelInfo } from "@/constants/credentialLevel";
 
 // All backend traffic goes through the Next.js proxy route, which forwards the
@@ -843,3 +844,51 @@ export async function fetchApplyClicks(
   return parseJson<PaginatedApplyClicks>(res, "Load applied list");
 }
 
+
+// ---- Billing (Stripe report credits) ----------------------------------------
+
+/** POST /billing/checkout-session — returns the Stripe-hosted Checkout URL to redirect to. */
+export async function createCheckoutSession(
+  packId = "starter",
+): Promise<{ url: string; sessionId: string }> {
+  const res = await authedFetch("/billing/checkout-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ packId }),
+  });
+  return parseJson<{ url: string; sessionId: string }>(res, "Start checkout");
+}
+
+/** GET /billing/credits — the signed-in user's remaining report credits. */
+export async function fetchCredits(): Promise<number> {
+  const res = await authedFetch("/billing/credits");
+  const data = await parseJson<{ credits: number }>(res, "Load credits");
+  return data.credits;
+}
+
+/** GET /billing/payments — the signed-in user's payments, newest first. */
+export async function fetchPayments(): Promise<Payment[]> {
+  const res = await authedFetch("/billing/payments");
+  const data = await parseJson<{ payments: Payment[] }>(res, "Load payments");
+  return data.payments;
+}
+
+/** GET /me/billing — plan, last payment, purchase history and credit usage for the Plan & Billing popup. */
+export async function fetchBillingDetails(): Promise<BillingDetails> {
+  const res = await authedFetch("/me/billing");
+  const data = await parseJson<BillingDetails>(res, "Load billing details");
+  return {
+    currentPlan: data.currentPlan ?? null,
+    lastPayment: data.lastPayment ?? null,
+    purchases: Array.isArray(data.purchases) ? data.purchases : [],
+    creditUsage: Array.isArray(data.creditUsage) ? data.creditUsage : [],
+  };
+}
+
+/** GET /billing/checkout-status — the backend's verdict on a Checkout session (never trust the URL alone). */
+export async function fetchCheckoutStatus(sessionId: string): Promise<CheckoutStatus> {
+  const res = await authedFetch(
+    `/billing/checkout-status?session_id=${encodeURIComponent(sessionId)}`,
+  );
+  return parseJson<CheckoutStatus>(res, "Verify payment");
+}

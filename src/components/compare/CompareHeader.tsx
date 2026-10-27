@@ -196,6 +196,24 @@ export default function CompareHeader({
         }),
       });
 
+      if (res.status === 402) {
+        // No report credits left (backend STRIPE_REQUIRE_PAYMENT) — send them to buy more.
+        stopTicker();
+        if (isMounted.current) {
+          setIsGenerating(false);
+          setGenerationStep(-1);
+          setProgress(0);
+        }
+        message.open({
+          key,
+          type: "warning",
+          content: "You're out of report credits. Redirecting to pricing...",
+          duration: 2,
+        });
+        router.push("/pricing");
+        return;
+      }
+
       if (!res.ok) {
         throw new Error(`Report generation failed: ${res.status}`);
       }

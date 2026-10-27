@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Lexend, Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { BillingProvider } from "@/context/BillingContext";
 import PopupConfig from "@/components/layout/PopupConfig";
 
 const lexend = Lexend({
@@ -50,8 +51,10 @@ export default async function RootLayout({
     <AuthProvider>
       <html lang="en" className={`${lexend.variable} ${poppins.variable}`}>
         <body className={lexend.className}>
-          <PopupConfig />
-          {children}
+          <BillingProvider>
+            <PopupConfig />
+            {children}
+          </BillingProvider>
         </body>
       </html>
     </AuthProvider>

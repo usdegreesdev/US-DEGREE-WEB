@@ -5,7 +5,7 @@
 
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { Result, Row, Col } from "antd";
 
 import ProfileInfoCard from "./cards/ProfileInfoCard";
@@ -23,6 +23,9 @@ import ChangeEmailModal from "./modals/ChangeEmailModal";
 import DeactivateAccountModal from "./modals/DeactivateAccountModal";
 
 import CompleteProfileAlert from "./CompleteProfileAlert";
+import CheckoutSuccessBanner from "./CheckoutSuccessBanner";
+import { useBilling } from "@/context/BillingContext";
+import { creditsLabel, formatDate, formatMoney } from "@/lib/billing";
 import { useProfileDashboard } from "./useProfileDashboard";
 import {
   emptyProfile,
@@ -65,6 +68,7 @@ export default function ProfileDashboard({ authUser }: ProfileDashboardProps) {
     handleEmailSubmit,
     onConfirmDeactivate,
   } = useProfileDashboard(authUser);
+  const { credits, payments, isMember } = useBilling();
 
   // Render Deactivated Account View
   if (accountDeactivatedStatus) {
@@ -84,6 +88,11 @@ export default function ProfileDashboard({ authUser }: ProfileDashboardProps) {
       id="student_profile_dashboard_page"
       className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-12"
     >
+      {/* Shown once after Stripe Checkout returns (?checkout=success&session_id=...) */}
+      <Suspense fallback={null}>
+        <CheckoutSuccessBanner />
+      </Suspense>
+
       {/* Complete Profile prompt for new users */}
       {isProfileEmpty(profile) && (
         <CompleteProfileAlert onOpenEdit={() => setIsEditProfileOpen(true)} />
@@ -142,6 +151,44 @@ export default function ProfileDashboard({ authUser }: ProfileDashboardProps) {
       <div>
         <MyReportsSection />
       </div>
+
+      {/* Billing & Credits — only for users who have paid; free users see no change. */}
+      {isMember && payments && (
+        <section id="subscription" className="scroll-mt-24">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-bold text-neutral-900">Billing &amp; Credits</h2>
+            {credits !== null && (
+              <span className="text-sm text-gray-600">Balance: {creditsLabel(credits)}</span>
+            )}
+          </div>
+          <ul className="mt-3 divide-y divide-neutral-100 rounded-xl border border-neutral-100 bg-white">
+            {payments.map((p) => (
+              <li
+                key={p.sessionId}
+                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm"
+              >
+                <span className="font-medium text-neutral-800">
+                  {p.packName} · {creditsLabel(p.credits)}
+                </span>
+                <span className="flex items-center gap-4 text-gray-600">
+                  <span>{formatDate(p.createdAt, "short")}</span>
+                  <span>{formatMoney(p.amountCents, p.currency)}</span>
+                  {p.receiptUrl && (
+                    <a
+                      href={p.receiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-action hover:text-action-hover"
+                    >
+                      Receipt
+                    </a>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Danger Zone */}
       <div>

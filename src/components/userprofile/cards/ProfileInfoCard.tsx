@@ -23,10 +23,14 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
 } from "@ant-design/icons";
+import { Crown } from "lucide-react";
 import { StudentProfile } from "../../../types/profile";
 import { calculateProfileCompletion } from "../../../lib/profileCompletion";
 import { useAuth } from "../../../context/AuthContext";
 import { useEmailVerification } from "../../../hooks/useEmailVerification";
+import { useBilling } from "../../../context/BillingContext";
+import { creditsLabel, formatDate } from "../../../lib/billing";
+import PlanBillingDialog from "../../billing/PlanBillingDialog";
 
 interface ProfileInfoCardProps {
   profile: StudentProfile;
@@ -50,6 +54,17 @@ export default function ProfileInfoCard({
   const { user } = useAuth();
   const { resending, resent, handleResendEmail } = useEmailVerification();
   const isEmailVerified = !!user?.emailVerified;
+  const { credits, payments, isMember: isPro } = useBilling();
+  const lastPayment = payments?.[0];
+
+  const [planOpen, setPlanOpen] = React.useState(false);
+  const planLinkRef = React.useRef<HTMLAnchorElement>(null);
+  const closePlan = React.useCallback(() => setPlanOpen(false), []);
+
+  const openPlanDetails = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setPlanOpen(true);
+  };
 
   const cardTitle = (
     <div className="flex items-center justify-between gap-2 py-1">
@@ -111,11 +126,30 @@ export default function ProfileInfoCard({
             profile.fullName || profile.email || "student",
           )}`}
           className="bg-blue-100 border-2 border-blue-500 shadow-sm shrink-0 rounded-full aspect-square"
+          style={
+            isPro
+              ? { boxShadow: "0 0 0 3px #fff, 0 0 0 5px var(--color-pro-ring)" }
+              : undefined
+          }
         />
-        <div className="text-center sm:text-left space-y-1 w-full">
-          <h2 className="text-xl font-bold text-neutral-900">
-            {profile.fullName || "Not provided"}
-          </h2>
+        <div className="text-center sm:text-left space-y-1 w-full min-w-0">
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-2 gap-y-1">
+            <h2 className="text-xl font-bold text-neutral-900">
+              {profile.fullName || "Not provided"}
+            </h2>
+            {isPro && credits !== null && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-pro-bg px-[9px] py-[3px] text-[11px] font-semibold text-pro-fg">
+                <Crown size={12} aria-hidden />
+                {creditsLabel(credits)}
+              </span>
+            )}
+          </div>
+          {isPro && lastPayment && (
+            <p className="text-xs text-gray-600">
+              Last purchase: {lastPayment.packName} ·{" "}
+              {formatDate(lastPayment.createdAt, "short")}
+            </p>
+          )}
           <Progress
             percent={profileCompletion}
             format={(percent) => `${percent}%`}
@@ -135,6 +169,18 @@ export default function ProfileInfoCard({
            
           </div>
         </div>
+        {isPro && (
+          <a
+            ref={planLinkRef}
+            href="#subscription"
+            onClick={openPlanDetails}
+            aria-haspopup="dialog"
+            className="shrink-0 text-xs font-medium text-action hover:text-action-hover"
+          >
+            See Plan Details →
+          </a> 
+        )}
+        {planOpen && <PlanBillingDialog onClose={closePlan} returnFocusRef={planLinkRef} />}
       </div>
 
       <Descriptions

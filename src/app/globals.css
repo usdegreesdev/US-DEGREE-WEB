@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Paid-membership / billing palette (static so the CSS vars exist for inline styles too). */
+@theme static {
+  --color-pro-bg: #fdf3dc;
+  --color-pro-fg: #7a5300;
+  --color-pro-ring: #e0a320;
+  --color-success: #16a34a;
+  --color-success-soft: #e7f6ec;
+  --color-success-border: #b7e4c7;
+  --color-action: #2557d6;
+  --color-action-hover: #1a3fa3;
+  --color-line: #d5dae3;
+}
+
 :root {
   /* Space the mobile bottom nav dock actually occupies from the viewport's
      bottom edge (including its own offset), measured at runtime by
@@ -162,6 +175,59 @@ body {
     bottom: 24px !important;
     text-align: right !important;
     padding-right: 24px;
+  }
+}
+
+/* Plan & Billing popup: fade + scale on desktop, slide-up sheet on mobile (~150ms). */
+@keyframes planDialogFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes planDialogScale {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes planDialogSlide {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.plan-dialog-overlay {
+  animation: planDialogFade 150ms ease-out both;
+}
+
+.plan-dialog-panel {
+  animation: planDialogSlide 150ms ease-out both;
+}
+
+@media (min-width: 640px) {
+  .plan-dialog-panel {
+    animation-name: planDialogScale;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-dialog-overlay,
+  .plan-dialog-panel {
+    animation: none;
   }
 }
 

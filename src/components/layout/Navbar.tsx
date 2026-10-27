@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/context/AuthContext";
+import { useBilling } from "@/context/BillingContext";
 import { useCompareCount } from "@/hooks/useCompareCount";
 import { useEmailVerification } from "@/hooks/useEmailVerification";
 import { useLoginModal } from "@/hooks/useLoginModal";
@@ -25,6 +26,7 @@ const Navbar = () => {
   const router = useRouter();
   const { user, logout } = useAuth();
   const isLoggedIn = !!user;
+  const { isMember } = useBilling();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -89,6 +91,7 @@ const Navbar = () => {
                 items={userMenuItems}
                 avatarInitial={avatarInitial}
                 firstName={firstName}
+                isPro={isMember}
               />
             ) : (
               <AuthButtons

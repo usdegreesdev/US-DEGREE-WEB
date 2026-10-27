@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 export default function ProBanner() {
   return (
@@ -20,9 +21,12 @@ export default function ProBanner() {
           <span className="text-blue-200 text-[10px] sm:text-xs font-bold tracking-wider mb-2">
             ANNUAL PLAN
           </span>
-          <button className="bg-white text-blue-600 font-bold py-2.5 px-6 sm:py-3 sm:px-8 rounded-full text-xs sm:text-sm w-full hover:bg-gray-50 transition-colors shadow-lg cursor-pointer">
+          <Link
+            href="/pricing"
+            className="bg-white text-blue-600 font-bold py-2.5 px-6 sm:py-3 sm:px-8 rounded-full text-xs sm:text-sm w-full text-center hover:bg-gray-50 transition-colors shadow-lg"
+          >
             Go Pro Today
-          </button>
+          </Link>
         </div>
       </div>
     </section>
