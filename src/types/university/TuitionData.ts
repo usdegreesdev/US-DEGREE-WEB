@@ -10,6 +10,7 @@ export interface TuitionData {
     tuition_out_state?: number | null;
     booksupply?: number | null;
     sticker_price_by_api?: number | null;
+    sticker_price_year?: string | null;
   };
   housing?: {
     roomboard_oncampus?: number | null;

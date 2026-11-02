@@ -13,6 +13,7 @@ import {
   OutcomesResponse,
 } from "@/types/university/ComparisonTable";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
+import { deriveCampusDemographics } from "@/lib/university/campusDemographics";
 
 interface CollegeDetailsModalProps {
   collegeId: string | null;
@@ -118,15 +119,8 @@ export default function CollegeDetailsModal({
         if (summaryRes.ok) summaryData = await summaryRes.json();
 
         // Stage 2: Fetch outcomes details with resolved program cip_code
-        const universityCipFallbacks: Record<string, string> = {
-          "1": "11.0701",
-          "2": "11.0701",
-        };
         const cipCode =
-          matchedCollege?.cipCode ||
-          overviewData?.program?.cip_code ||
-          (actualId ? universityCipFallbacks[actualId] : null) ||
-          "default";
+          matchedCollege?.cipCode || overviewData?.program?.cip_code || "default";
         let outcomesData: OutcomesResponse = {};
         try {
           const outcomesRes = await fetch(
@@ -144,11 +138,7 @@ export default function CollegeDetailsModal({
           overviewData?.school_name ||
           overviewData?.school?.school_name ||
           overviewData?.school?.name ||
-          (actualId === "1"
-            ? "Stanford University"
-            : actualId === "2"
-              ? "UC Berkeley"
-              : "Unknown University");
+          "Unknown University";
 
         const city = overviewData?.school?.city || "";
         const state = overviewData?.school?.state || "";
@@ -156,13 +146,7 @@ export default function CollegeDetailsModal({
           matchedCollege?.location ||
           (city && state
             ? `${city}, ${state}`
-            : city ||
-              state ||
-              (actualId === "1"
-                ? "Stanford, CA"
-                : actualId === "2"
-                  ? "Berkeley, CA"
-                  : "Unknown Location"));
+            : city || state || "Unknown Location");
         const control =
           overviewData?.school?.control ||
           (matchedCollege?.isPrivate ? "Private" : "Public");
@@ -178,100 +162,67 @@ export default function CollegeDetailsModal({
             : null) ||
           `https://logo.clearbit.com/google.com`;
 
-        // StatsGrid stats with fallbacks
+        // Same sources as the university page tabs; no fallback values.
         const totalStudents =
           overviewData?.students?.size !== null &&
           overviewData?.students?.size !== undefined
             ? Number(overviewData.students.size)
-            : actualId === "1"
-              ? 17249
-              : actualId === "2"
-                ? 43000
-                : null;
+            : null;
 
-        const rawFacultyRatio = overviewData?.students?.student_faculty_ratio;
+        // Campus data (as the page uses) first, then the overview's ratio.
+        const rawFacultyRatio =
+          summaryData?.campus?.student_faculty_ratio ||
+          overviewData?.students?.student_faculty_ratio;
         const facultyRatio = rawFacultyRatio
           ? String(rawFacultyRatio).includes(":")
             ? String(rawFacultyRatio)
             : `${rawFacultyRatio}:1`
-          : actualId === "1"
-            ? "5:1"
-            : actualId === "2"
-              ? "18:1"
-              : "N/A";
+          : "N/A";
 
         const rawRetention = overviewData?.students?.retention_rate;
         const retentionRate =
           rawRetention !== null && rawRetention !== undefined
             ? `${(Number(rawRetention) * 100).toFixed(0)}%`
-            : actualId === "1"
-              ? "98%"
-              : actualId === "2"
-                ? "97%"
-                : "N/A";
+            : "N/A";
 
         const programs =
           overviewData?.school?.program_count !== null &&
           overviewData?.school?.program_count !== undefined
             ? Number(overviewData.school.program_count)
-            : actualId === "1"
-              ? 20
-              : actualId === "2"
-                ? 150
-                : null;
+            : null;
 
         const fafsaApplications =
           overviewData?.students?.fafsa_applications !== null &&
           overviewData?.students?.fafsa_applications !== undefined
             ? Number(overviewData.students.fafsa_applications)
-            : actualId === "1"
-              ? 2412
-              : actualId === "2"
-                ? 5700
-                : null;
+            : null;
 
         const rawCompletion = overviewData?.completion?.completion_rate;
         const completionRate =
           rawCompletion !== null && rawCompletion !== undefined
             ? `${Number(rawCompletion).toFixed(0)}%`
-            : actualId === "1"
-              ? "94%"
-              : actualId === "2"
-                ? "92%"
-                : "N/A";
+            : "N/A";
 
-        // Tuition costs
+        // Tuition & Costs tab: "Tuition In State" / "Tuition Out State"
+        // come straight from /tuition (tuition_in_state / tuition_out_state).
         const tuitionInState =
           summaryData?.tuition?.tuition_in_state !== null &&
           summaryData?.tuition?.tuition_in_state !== undefined
             ? Number(summaryData.tuition.tuition_in_state)
-            : actualId === "1"
-              ? 56169
-              : actualId === "2"
-                ? 14200
-                : null;
+            : null;
         const tuitionOutOfState =
           summaryData?.tuition?.tuition_out_state !== null &&
           summaryData?.tuition?.tuition_out_state !== undefined
             ? Number(summaryData.tuition.tuition_out_state)
-            : actualId === "1"
-              ? 56169
-              : actualId === "2"
-                ? 43980
-                : null;
+            : null;
 
-        // SAT ranges
         const satReadingWriting =
           overviewData?.admissions?.sat_rw_min !== null &&
           overviewData?.admissions?.sat_rw_max !== null &&
           overviewData?.admissions?.sat_rw_min !== undefined &&
           overviewData?.admissions?.sat_rw_max !== undefined
             ? `${overviewData.admissions.sat_rw_min} - ${overviewData.admissions.sat_rw_max}`
-            : actualId === "1"
-              ? "690 - 840"
-              : actualId === "2"
-                ? "660 - 780"
-                : null;
+            : null;
 
         const satMath =
           overviewData?.admissions?.sat_math_min !== null &&
@@ -279,44 +230,25 @@ export default function CollegeDetailsModal({
           overviewData?.admissions?.sat_math_min !== undefined &&
           overviewData?.admissions?.sat_math_max !== undefined
             ? `${overviewData.admissions.sat_math_min} - ${overviewData.admissions.sat_math_max}`
-            : actualId === "1"
-              ? "630 - 810"
-              : actualId === "2"
-                ? "680 - 800"
-                : null;
+            : null;
 
         const satAverage =
           overviewData?.admissions?.sat_avg_overall !== null &&
           overviewData?.admissions?.sat_avg_overall !== undefined
             ? String(overviewData.admissions.sat_avg_overall)
-            : actualId === "1"
-              ? "1500"
-              : actualId === "2"
-                ? "1380"
-                : null;
+            : null;
 
-        // Acceptance
         const acceptanceRate =
           overviewData?.admissions?.admission_rate !== null &&
           overviewData?.admissions?.admission_rate !== undefined
             ? `${(Number(overviewData.admissions.admission_rate) * 100).toFixed(1)}%`
-            : actualId === "1"
-              ? "4.3%"
-              : actualId === "2"
-                ? "11.4%"
-                : "N/A";
+            : "N/A";
 
-        // Repayments mapping (matching Program Details loanRepaymentDisplay logic)
-        const rawRepayment = summaryData?.repayment?.all_borrowers_3yr;
-        const repaymentRate3YrVal = toPercentVal(rawRepayment);
+        const repaymentRate3YrVal = toPercentVal(
+          summaryData?.repayment?.all_borrowers_3yr,
+        );
         const graduates3yr =
-          repaymentRate3YrVal !== null
-            ? `${repaymentRate3YrVal}%`
-            : actualId === "1"
-              ? "98%"
-              : actualId === "2"
-                ? "92%"
-                : "N/A";
+          repaymentRate3YrVal !== null ? `${repaymentRate3YrVal}%` : "N/A";
 
         // Salaries — same per-metric cohort resolution as the main
         // Outcomes & Careers page (src/lib/university/buildUniversityViewData.ts):
@@ -332,7 +264,7 @@ export default function CollegeDetailsModal({
           sanitizeSalary(resolvedEarnings?.year_1?.value) ||
           sanitizeSalary(outcomesData?.earnings?.year_1) ||
           sanitizeSalary(overviewData?.earnings?.year_1) ||
-          (actualId === "1" ? 91200 : actualId === "2" ? 85000 : null);
+          null;
         const salaryYear5 =
           sanitizeSalary(resolvedEarnings?.year_5?.value) ||
           sanitizeSalary(outcomesData?.earnings?.year_5) ||
@@ -342,7 +274,7 @@ export default function CollegeDetailsModal({
           sanitizeSalary(resolvedEarnings?.year_10?.value) ||
           sanitizeSalary(outcomesData?.earnings?.year_10) ||
           sanitizeSalary(overviewData?.earnings?.year_10) ||
-          (actualId === "1" ? 149696 : actualId === "2" ? 135000 : null);
+          null;
 
         const salaryYear1Method =
           resolvedEarnings?.year_1?.method ??
@@ -366,19 +298,13 @@ export default function CollegeDetailsModal({
         const salaryYear5Cohort = resolvedEarnings?.year_5?.cohort ?? null;
         const salaryYear10Cohort = resolvedEarnings?.year_10?.cohort ?? null;
 
-        // Gender demographics
-        const menStudentsPct =
-          summaryData?.students?.demographics?.men !== null &&
-          summaryData?.students?.demographics?.men !== undefined
-            ? Number(summaryData.students.demographics.men)
-            : 44;
-        const womenStudentsPct =
-          summaryData?.students?.demographics?.women !== null &&
-          summaryData?.students?.demographics?.women !== undefined
-            ? Number(summaryData.students.demographics.women)
-            : 56;
-        const menFacultyPct = 58;
-        const womenFacultyPct = 42;
+        // Gender distribution — identical to the Campus & Students tab.
+        const {
+          menStudentsPct,
+          womenStudentsPct,
+          menFacultyPct,
+          womenFacultyPct,
+        } = deriveCampusDemographics(summaryData);
 
         const resolvedData: CollegeDetail = {
           name,
@@ -950,14 +876,16 @@ export default function CollegeDetailsModal({
                       <div className="flex justify-between text-xs font-bold text-slate-600">
                         <span>Men (Students)</span>
                         <span>
-                          {(data.menStudentsPct * animProgress).toFixed(1)}%
+                          {data.menStudentsPct !== null
+                            ? `${(data.menStudentsPct * animProgress).toFixed(1)}%`
+                            : "N/A"}
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-[#FF5A5A] rounded-full transition-all"
                           style={{
-                            width: `${data.menStudentsPct * animProgress}%`,
+                            width: `${(data.menStudentsPct ?? 0) * animProgress}%`,
                           }}
                         />
                       </div>
@@ -968,14 +896,16 @@ export default function CollegeDetailsModal({
                       <div className="flex justify-between text-xs font-bold text-slate-600">
                         <span>Men (Faculty)</span>
                         <span>
-                          {(data.menFacultyPct * animProgress).toFixed(1)}%
+                          {data.menFacultyPct !== null
+                            ? `${(data.menFacultyPct * animProgress).toFixed(1)}%`
+                            : "N/A"}
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-[#FF5A5A] rounded-full transition-all"
                           style={{
-                            width: `${data.menFacultyPct * animProgress}%`,
+                            width: `${(data.menFacultyPct ?? 0) * animProgress}%`,
                           }}
                         />
                       </div>
@@ -986,14 +916,16 @@ export default function CollegeDetailsModal({
                       <div className="flex justify-between text-xs font-bold text-slate-600">
                         <span>Women (Students)</span>
                         <span>
-                          {(data.womenStudentsPct * animProgress).toFixed(1)}%
+                          {data.womenStudentsPct !== null
+                            ? `${(data.womenStudentsPct * animProgress).toFixed(1)}%`
+                            : "N/A"}
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-[#EC4899] rounded-full transition-all"
                           style={{
-                            width: `${data.womenStudentsPct * animProgress}%`,
+                            width: `${(data.womenStudentsPct ?? 0) * animProgress}%`,
                           }}
                         />
                       </div>
@@ -1004,14 +936,16 @@ export default function CollegeDetailsModal({
                       <div className="flex justify-between text-xs font-bold text-slate-600">
                         <span>Women (Faculty)</span>
                         <span>
-                          {(data.womenFacultyPct * animProgress).toFixed(1)}%
+                          {data.womenFacultyPct !== null
+                            ? `${(data.womenFacultyPct * animProgress).toFixed(1)}%`
+                            : "N/A"}
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-[#EC4899] rounded-full transition-all"
                           style={{
-                            width: `${data.womenFacultyPct * animProgress}%`,
+                            width: `${(data.womenFacultyPct ?? 0) * animProgress}%`,
                           }}
                         />
                       </div>

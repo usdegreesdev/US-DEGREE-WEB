@@ -33,6 +33,7 @@ const ALLOWED_PATH_PREFIXES = [
   "outcomes",
   "campus",
   "tuition",
+  "college-summary",
   "credentials",
   "courses",
   "degree-levels",

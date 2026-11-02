@@ -59,10 +59,10 @@ export interface CollegeDetail {
   salaryYear1Cohort: string | null;
   salaryYear5Cohort: string | null;
   salaryYear10Cohort: string | null;
-  menStudentsPct: number;
-  womenStudentsPct: number;
-  menFacultyPct: number;
-  womenFacultyPct: number;
+  menStudentsPct: number | null;
+  womenStudentsPct: number | null;
+  menFacultyPct: number | null;
+  womenFacultyPct: number | null;
 }
 
 // ---- Raw API response shapes consumed by the CollegeDetailsModal ----
@@ -114,8 +114,12 @@ export interface TuitionResponse {
 }
 
 export interface CampusResponse {
+  campus?: { student_faculty_ratio?: ApiNumber };
   repayment?: { all_borrowers_3yr?: ApiNumber };
-  students?: { demographics?: { men?: number | null; women?: number | null } };
+  students?: {
+    demographics?: { men?: ApiNumber; women?: ApiNumber };
+    faculty?: { men?: ApiNumber; women?: ApiNumber };
+  };
 }
 
 // `/college-summary/{unitid}` — merges the old `/tuition/{unitid}` and

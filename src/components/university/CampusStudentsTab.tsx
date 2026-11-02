@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { CampusStudentsTabProps } from "@/types/university/CampusStudentsTab";
 import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
+import { deriveCampusDemographics } from "@/lib/university/campusDemographics";
 
 export default function CampusStudentsTab({
   campusData,
@@ -59,41 +60,9 @@ export default function CampusStudentsTab({
       ? Number(campusData.students.grad_students)
       : null;
 
-  // Student Demographics (Men / Women)
-  const menStudentsPct =
-    campusData?.students?.demographics?.men !== null &&
-    campusData?.students?.demographics?.men !== undefined
-      ? (() => {
-          const n = Number(campusData.students.demographics.men);
-          return n < 2 ? n * 100 : n;
-        })()
-      : null;
-  const womenStudentsPct =
-    campusData?.students?.demographics?.women !== null &&
-    campusData?.students?.demographics?.women !== undefined
-      ? (() => {
-          const n = Number(campusData.students.demographics.women);
-          return n < 2 ? n * 100 : n;
-        })()
-      : null;
-
-  // Faculty Demographics
-  const menFacultyPct =
-    campusData?.students?.faculty?.men !== null &&
-    campusData?.students?.faculty?.men !== undefined
-      ? (() => {
-          const n = Number(campusData.students.faculty.men);
-          return n < 2 ? n * 100 : n;
-        })()
-      : null;
-  const womenFacultyPct =
-    campusData?.students?.faculty?.women !== null &&
-    campusData?.students?.faculty?.women !== undefined
-      ? (() => {
-          const n = Number(campusData.students.faculty.women);
-          return n < 2 ? n * 100 : n;
-        })()
-      : null;
+  // Student + faculty demographics (shared with the compare details modal)
+  const { menStudentsPct, womenStudentsPct, menFacultyPct, womenFacultyPct } =
+    deriveCampusDemographics(campusData);
 
   // Repayment 3-Year Progress Rates
   const toPercentVal = (val: number | string | null | undefined) => {
