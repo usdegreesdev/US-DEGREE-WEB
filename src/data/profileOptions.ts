@@ -25,3 +25,12 @@ export const DEACTIVATION_REASONS = [
   { value: "3", label: "Privacy concerns" },
   { value: "4", label: "Other" },
 ];
+
+/** Approximate annual household income slabs: stable id (stored) -> label. */
+export const HOUSEHOLD_INCOME_OPTIONS = [
+  { value: "0_30000", label: "$0 – $30,000" },
+  { value: "30001_48000", label: "$30,001 – $48,000" },
+  { value: "48001_75000", label: "$48,001 – $75,000" },
+  { value: "75001_110000", label: "$75,001 – $110,000" },
+  { value: "110001_plus", label: "$110,001+" },
+];

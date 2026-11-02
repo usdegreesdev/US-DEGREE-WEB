@@ -60,6 +60,7 @@ export function emptyProfile(
     address: "",
     createdDate: formatDbDate(authUser?.createdAt, ""),
     lastLogin: formatDbDate(authUser?.lastLogin, ""),
+    householdIncomeRange: "",
     highSchoolName: "",
     graduationYear: null,
     gpa: null,
@@ -143,6 +144,10 @@ export function mergeProfile(
       data.preferred_college_type ?? data.preferredCollegeType,
       prev.preferredCollegeType,
     ),
+    householdIncomeRange: pick(
+      data.household_income_range ?? data.householdIncomeRange,
+      prev.householdIncomeRange,
+    ),
   };
 }
 
@@ -187,6 +192,15 @@ export function toProfilePatch(
     values.preferredCollegeType ?? "",
     prev.preferredCollegeType,
   );
+
+  // Income is optional and clearing it isn't supported by PATCH /profile, so
+  // only a newly chosen slab is sent.
+  if (
+    values.householdIncomeRange &&
+    values.householdIncomeRange !== prev.householdIncomeRange
+  ) {
+    patch.householdIncomeRange = values.householdIncomeRange;
+  }
 
   const nextStates = (values.preferredStates ?? []).map((s) => s.toUpperCase());
   if (!sameStringSet(nextStates, prev.preferredStates)) {

@@ -61,6 +61,7 @@ export default function ProfileDashboard({ authUser }: ProfileDashboardProps) {
     matches,
     matchesLoading,
     onProfileSave,
+    onIncomeSave,
     handlePasswordSubmit,
     handleEmailSubmit,
     onConfirmDeactivate,
@@ -96,6 +97,7 @@ export default function ProfileDashboard({ authUser }: ProfileDashboardProps) {
             profile={profile}
             loading={isProfileLoading}
             onEdit={() => setIsEditProfileOpen(true)}
+            onSaveIncome={onIncomeSave}
             onChangePassword={() => setIsChangePasswordOpen(true)}
             onChangeEmail={openChangeEmailModal}
           />

@@ -44,6 +44,9 @@ export interface StudentProfile {
   createdDate: string;
   lastLogin: string;
 
+  /** Stable income slab id (see HOUSEHOLD_INCOME_OPTIONS); "" when unset. */
+  householdIncomeRange: string;
+
   highSchoolName: string;
   graduationYear: number | null;
   gpa: number | null;

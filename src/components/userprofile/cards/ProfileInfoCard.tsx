@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
+  Select,
   Card,
   Avatar,
   Descriptions,
@@ -22,7 +23,11 @@ import {
   SettingOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
+  DollarOutlined,
+  InfoCircleOutlined,
+  EditOutlined,
 } from "@ant-design/icons";
+import { HOUSEHOLD_INCOME_OPTIONS } from "../../../data/profileOptions";
 import { StudentProfile } from "../../../types/profile";
 import { calculateProfileCompletion } from "../../../lib/profileCompletion";
 import { useAuth } from "../../../context/AuthContext";
@@ -32,6 +37,7 @@ interface ProfileInfoCardProps {
   profile: StudentProfile;
   loading?: boolean;
   onEdit: () => void;
+  onSaveIncome: (householdIncomeRange: string) => Promise<boolean>;
   onChangePassword: () => void;
   onChangeEmail: () => void;
 }
@@ -39,10 +45,14 @@ interface ProfileInfoCardProps {
 // US Degrees brand blue used for themed outline buttons.
 const BRAND_BLUE = "#3b5bdb";
 
+const INCOME_TOOLTIP =
+  "Please select your approximate annual household income range. This information helps us personalize college affordability and financial recommendations.";
+
 export default function ProfileInfoCard({
   profile,
   loading = false,
   onEdit,
+  onSaveIncome,
   onChangePassword,
   onChangeEmail,
 }: ProfileInfoCardProps) {
@@ -50,6 +60,33 @@ export default function ProfileInfoCard({
   const { user } = useAuth();
   const { resending, resent, handleResendEmail } = useEmailVerification();
   const isEmailVerified = !!user?.emailVerified;
+
+  const [editingIncome, setEditingIncome] = useState(false);
+  const [incomeDraft, setIncomeDraft] = useState("");
+  const [savingIncome, setSavingIncome] = useState(false);
+  const incomeLabel = HOUSEHOLD_INCOME_OPTIONS.find(
+    (o) => o.value === profile.householdIncomeRange,
+  )?.label;
+
+  const startIncomeEdit = () => {
+    setIncomeDraft(profile.householdIncomeRange || "");
+    setEditingIncome(true);
+  };
+  const cancelIncomeEdit = () => {
+    setIncomeDraft("");
+    setEditingIncome(false);
+  };
+  const handleIncomeSave = async () => {
+    if (!incomeDraft) return;
+    if (incomeDraft === profile.householdIncomeRange) {
+      cancelIncomeEdit();
+      return;
+    }
+    setSavingIncome(true);
+    const ok = await onSaveIncome(incomeDraft);
+    setSavingIncome(false);
+    if (ok) cancelIncomeEdit();
+  };
 
   const cardTitle = (
     <div className="flex items-center justify-between gap-2 py-1">
@@ -233,6 +270,79 @@ export default function ProfileInfoCard({
           <span className="font-medium text-neutral-600">
             {profile.lastLogin || "—"}
           </span>
+        </Descriptions.Item>
+        <Descriptions.Item
+          label={
+            <span className="font-bold flex items-center gap-1.5">
+              <DollarOutlined className="text-neutral-400" /> Annual Household
+              Income (Approximate)
+              <Tooltip title={INCOME_TOOLTIP} trigger={["hover", "click"]}>
+                <InfoCircleOutlined
+                  className="text-neutral-400 cursor-pointer hover:text-blue-600"
+                  aria-label="About household income"
+                />
+              </Tooltip>
+            </span>
+          }
+        >
+          {editingIncome ? (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <Select
+                value={incomeDraft || undefined}
+                onChange={setIncomeDraft}
+                options={HOUSEHOLD_INCOME_OPTIONS}
+                placeholder="Select income range"
+                disabled={savingIncome}
+                className="w-full sm:w-56"
+                aria-label="Annual household income range"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={handleIncomeSave}
+                  loading={savingIncome}
+                  disabled={!incomeDraft}
+                  style={{ borderRadius: "6px", background: BRAND_BLUE }}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="small"
+                  onClick={cancelIncomeEdit}
+                  disabled={savingIncome}
+                  style={{ borderRadius: "6px" }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {incomeLabel ? (
+                <Tag
+                  color="geekblue"
+                  style={{ borderRadius: "6px", marginInlineEnd: 0 }}
+                >
+                  {incomeLabel}
+                </Tag>
+              ) : (
+                <span className="font-medium text-neutral-400">Not set</span>
+              )}
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={startIncomeEdit}
+                style={{
+                  borderRadius: "6px",
+                  borderColor: BRAND_BLUE,
+                  color: BRAND_BLUE,
+                }}
+              >
+                Edit
+              </Button>
+            </div>
+          )}
         </Descriptions.Item>
       </Descriptions>
 

@@ -20,7 +20,10 @@ import {
   HomeOutlined,
 } from "@ant-design/icons";
 import { StudentProfile } from "../../../types/profile";
-import { PROGRAM_OPTIONS } from "../../../data/profileOptions";
+import {
+  HOUSEHOLD_INCOME_OPTIONS,
+  PROGRAM_OPTIONS,
+} from "../../../data/profileOptions";
 import { useStates, useDegreeLevels } from "../../../lib/referenceData";
 
 type ProfileFormValues = Omit<StudentProfile, "createdDate" | "lastLogin">;
@@ -36,7 +39,7 @@ interface EditProfileModalProps {
 // names drive both per-step validation (form.validateFields) and the Steps
 // indicator labels.
 const STEP_FIELDS: string[][] = [
-  ["fullName", "email", "phone", "address"],
+  ["fullName", "email", "phone", "address", "householdIncomeRange"],
   ["highSchoolName", "graduationYear", "gpa", "satScore", "actScore"],
   [
     "preferredStates",
@@ -207,6 +210,23 @@ export default function EditProfileModal({
                 label="Mailing/Postal address (Optional)"
               >
                 <Input prefix={<HomeOutlined />} placeholder="City, State" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item
+                name="householdIncomeRange"
+                label="Annual Household Income (Optional)"
+                extra="Approximate range. Helps us personalize college affordability and financial recommendations."
+              >
+                <Select
+                  allowClear
+                  placeholder="Select income range"
+                  options={HOUSEHOLD_INCOME_OPTIONS}
+                  className="w-full"
+                />
               </Form.Item>
             </Col>
           </Row>

@@ -207,6 +207,24 @@ export function useProfileDashboard(authUser?: ProfileAuthUser | null) {
     }
   };
 
+  /** Persists the approximate household income slab. Resolves true on success. */
+  const onIncomeSave = async (householdIncomeRange: string): Promise<boolean> => {
+    try {
+      const updated = await patchProfile<Record<string, unknown>>({
+        householdIncomeRange,
+      });
+      setProfile((prev) =>
+        mergeProfile(prev, updated ?? { householdIncomeRange }),
+      );
+      message.success("Household income updated successfully!");
+      return true;
+    } catch (err) {
+      console.error("Income save failed:", err);
+      message.error("Could not save your household income. Please try again.");
+      return false;
+    }
+  };
+
   const handlePasswordSubmit = async (values: {
     currentPassword: string;
     newPassword: string;
@@ -399,6 +417,7 @@ export function useProfileDashboard(authUser?: ProfileAuthUser | null) {
     matches,
     matchesLoading,
     onProfileSave,
+    onIncomeSave,
     handlePasswordSubmit,
     handleEmailSubmit,
     onConfirmDeactivate,
