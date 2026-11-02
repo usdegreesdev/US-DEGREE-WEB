@@ -219,6 +219,9 @@ export default function EditProfileModal({
               <Form.Item
                 name="householdIncomeRange"
                 label="Annual Household Income (Optional)"
+                rules={[
+                  { required: true, message: "Please select an income range" },
+                ]}
                 extra="Approximate range. Helps us personalize college affordability and financial recommendations."
               >
                 <Select

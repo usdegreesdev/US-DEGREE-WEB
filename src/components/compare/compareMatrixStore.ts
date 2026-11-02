@@ -365,8 +365,14 @@ export async function toggleCompare(
 
 // ---- React hooks ----
 
-function useCompareMatrixSync<T>(read: () => T, deps: unknown[]): T {
-  const [value, setValue] = useState<T>(read);
+// `initial` is what the server (and the first client render) shows, so hydration
+// matches; the effect below then syncs to the real client-side store.
+function useCompareMatrixSync<T>(
+  read: () => T,
+  deps: unknown[],
+  initial: T,
+): T {
+  const [value, setValue] = useState<T>(initial);
   useEffect(() => {
     ensureMatrixLoaded();
     const handler = () => setValue(read());
@@ -383,10 +389,11 @@ export function useIsCollegeCompared(unitid?: string | null): boolean {
   return useCompareMatrixSync(
     () => (unitid ? isCollegeCompared(unitid) : false),
     [unitid],
+    false,
   );
 }
 
 /** Reactive list of compared entry ids, for components rendering the whole set. */
 export function useCompareEntryIds(): string[] {
-  return useCompareMatrixSync(getCompareEntryIds, []);
+  return useCompareMatrixSync<string[]>(getCompareEntryIds, [], []);
 }

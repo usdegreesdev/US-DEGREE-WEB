@@ -295,6 +295,7 @@ export async function buildUniversityViewData(
     satMath,
     satAverage,
     testingRequirements: testingRequirementsFinal,
+    admissionsGlance: apiData?.admissions ?? null,
 
     // Dynamic Stats for StatsGrid
     totalStudents,

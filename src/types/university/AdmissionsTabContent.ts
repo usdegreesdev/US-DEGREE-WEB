@@ -1,3 +1,5 @@
+import type { AdmissionsGlanceInput } from "@/lib/university/admissionsGlance";
+
 /**
  * Backend-provided color token for the testing-requirements badge. Mapped to the
  * app's existing Tailwind pill classes in AdmissionsTabContent — never to raw hex.
@@ -29,15 +31,5 @@ export interface TestingRequirementsDisclosure {
 }
 
 export interface AdmissionsTabContentProps {
-  name: string;
-  admissionRate: string;
-  applicants: string;
-  satReadingWriting: string;
-  satMath: string;
-  satAverage: string;
-  /**
-   * Testing-requirements disclosure. When present and publishable, the badge
-   * replaces the numeric SAT range (the two are mutually exclusive per college).
-   */
-  testingRequirements?: TestingRequirementsDisclosure | null;
+  admissions: AdmissionsGlanceInput | null | undefined;
 }

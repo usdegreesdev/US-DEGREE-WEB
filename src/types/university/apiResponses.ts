@@ -44,6 +44,13 @@ export interface ApiOverview {
   admissions?: {
     admission_rate?: number | null;
     sat_avg_overall?: ApiNum;
+    publish_publicly?: boolean | null;
+    school_min_range?: ApiNum;
+    school_max_range?: ApiNum;
+    sat_p25_reading?: ApiNum;
+    sat_p75_reading?: ApiNum;
+    sat_p25_math?: ApiNum;
+    sat_p75_math?: ApiNum;
     sat_rw_min?: number | null;
     sat_rw_max?: number | null;
     sat_math_min?: number | null;

@@ -168,15 +168,7 @@ export default function TabContent({ data }: { data: UniversityViewData }) {
           )}
 
           {activeTab === "Admissions" && (
-            <AdmissionsTabContent
-              name={data.name}
-              admissionRate={data.admissionRate}
-              applicants={data.applicants}
-              satReadingWriting={data.satReadingWriting}
-              satMath={data.satMath}
-              satAverage={data.satAverage}
-              testingRequirements={data.testingRequirements}
-            />
+            <AdmissionsTabContent admissions={data.admissionsGlance} />
           )}
 
           {activeTab === "Outcomes & Careers" && (
