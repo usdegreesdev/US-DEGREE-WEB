@@ -109,14 +109,16 @@ export default function MyReportsSection() {
       render: (_value, _record, index) => (page - 1) * PAGE_SIZE + index + 1,
     },
     {
-      title: "Created Date",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      width: 190,
-      render: (value: string) => (
-        <span className="whitespace-nowrap">{formatDateTime(value)}</span>
+      title: "Report",
+      key: "report",
+      width: 170,
+      render: (_value, record) => (
+        <span className="font-semibold text-neutral-700 break-all">
+          {pdfNameFor(record)}
+        </span>
       ),
     },
+
     {
       title: "Compared Colleges",
       key: "colleges",
@@ -135,13 +137,12 @@ export default function MyReportsSection() {
       ),
     },
     {
-      title: "Report",
-      key: "report",
-      width: 200,
-      render: (_value, record) => (
-        <span className="font-semibold text-neutral-700 break-all">
-          {pdfNameFor(record)}
-        </span>
+      title: "Created Date",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 170,
+      render: (value: string) => (
+        <span className="whitespace-nowrap">{formatDateTime(value)}</span>
       ),
     },
     {
