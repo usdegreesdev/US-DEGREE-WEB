@@ -20,6 +20,7 @@ import { StudentProfile } from "../../types/profile";
 import { SearchResult } from "../../types/search-details";
 import { extractSearchRows } from "../../lib/search/searchParams";
 import { EarningsFillMethod } from "@/types/earningsMethod";
+import { getProgramSearchTerm } from "../../data/profileOptions";
 
 /** A single matched college, ready to render. Rates are percentages (0–100). */
 export interface CollegeMatch {
@@ -155,7 +156,7 @@ export function useCollegeMatches(profile: StudentProfile): {
         const resultArrays = await Promise.all(
           queries.map(async (major) => {
             const params = new URLSearchParams();
-            if (major) params.set("title", major);
+            if (major) params.set("title", getProgramSearchTerm(major));
             if (states.length > 0) params.set("state", states.join(","));
             if (degreeLevel) params.set("credential_title", degreeLevel);
             try {

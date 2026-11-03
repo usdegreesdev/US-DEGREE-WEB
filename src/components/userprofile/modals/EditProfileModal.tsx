@@ -245,9 +245,9 @@ export default function EditProfileModal({
               <Form.Item
                 name="highSchoolName"
                 label="High School Name"
-                rules={[
-                  { required: true, message: "High school name is required" },
-                ]}
+                // rules={[
+                //   { required: true, message: "High school name is required" },
+                // ]}
               >
                 <Input placeholder="Enter Your High School" />
               </Form.Item>
@@ -360,6 +360,9 @@ export default function EditProfileModal({
               <Form.Item
                 name="preferredStates"
                 label="Target States (Multiple)"
+                rules={[
+                  { required: true, message: "Select Preferred States" },
+                ]}
               >
                 {/* Options from GET /states: show full name, store 2-letter code. */}
                 <Select
@@ -378,12 +381,25 @@ export default function EditProfileModal({
               <Form.Item
                 name="preferredPrograms"
                 label="Target Curriculums / Majors"
+                rules={[
+                  { required: true, message: "Select preferred Majors" },
+                ]}
               >
                 <Select
                   mode="multiple"
-                  placeholder="Select Majors"
+                  showSearch
+                  placeholder="Type to search majors"
+                  notFoundContent="No matching majors"
                   className="w-full"
-                  options={PROGRAM_OPTIONS.map((p) => ({ value: p, label: p }))}
+                  options={PROGRAM_OPTIONS.map((program) => ({
+                    value: program.label,
+                    label: program.label,
+                  }))}
+                  filterOption={(input, option) =>
+                    String(option?.label ?? "")
+                      .toLowerCase()
+                      .includes(input.trim().toLowerCase())
+                  }
                 />
               </Form.Item>
             </Col>
@@ -394,6 +410,9 @@ export default function EditProfileModal({
               <Form.Item
                 name="preferredDegreeLevel"
                 label="Target Degree Level"
+                rules={[
+                  { required: true, message: "Degree level is Required" },
+                ]}
               >
                 {/* Options from GET /degree-levels in backend order; the canonical
                     string is both the value submitted and the label shown. */}
