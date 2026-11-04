@@ -152,7 +152,10 @@ export default function TabContent({ data }: { data: UniversityViewData }) {
                 applicants={data.applicants}
                 satReadingWriting={data.satReadingWriting}
                 satMath={data.satMath}
-                satAverage={data.satAverage}
+                onViewAdmissions={() => {
+                  setActiveTab("Admissions");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
                 salaryYear1={data.salaryYear1}
                 salaryYear10={data.salaryYear10}
                 salaryYear1Method={data.salaryYear1Method}

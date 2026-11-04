@@ -5,7 +5,8 @@ export interface AdmissionsOverviewProps {
   applicants: string;
   satReadingWriting: string;
   satMath: string;
-  satAverage: string;
+  satAverage?: string;
+  onViewAdmissions?: () => void;
   salaryYear1?: number | string | null;
   salaryYear10?: number | string | null;
   salaryYear1Method?: EarningsFillMethod | null;

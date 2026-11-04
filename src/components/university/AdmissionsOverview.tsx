@@ -38,12 +38,41 @@ const formatPercent = (value: number | string | null | undefined): string => {
   return `${pct.toFixed(1).replace(/\.0$/, "")}%`;
 };
 
+const SAT_MIN = 200;
+const SAT_MAX = 800;
+
+type SatRange = {
+  low: number;
+  high: number;
+  leftPct: number;
+  widthPct: number;
+} | null;
+
+// Parses strings like "420 - 530". Returns null for missing/invalid values so
+// no misleading empty range is rendered.
+const parseSatRange = (value: string | null | undefined): SatRange => {
+  if (!value) return null;
+  const nums = value.match(/\d+/g)?.map(Number);
+  if (!nums || nums.length < 2) return null;
+  const [a, b] = nums;
+  const low = Math.min(a, b);
+  const high = Math.max(a, b);
+  if (low < SAT_MIN || high > SAT_MAX) return null;
+  const span = SAT_MAX - SAT_MIN;
+  return {
+    low,
+    high,
+    leftPct: ((low - SAT_MIN) / span) * 100,
+    widthPct: Math.max(((high - low) / span) * 100, 1),
+  };
+};
+
 export default function AdmissionsOverview({
   admissionRate,
   applicants,
   satReadingWriting,
   satMath,
-  satAverage,
+  onViewAdmissions,
   salaryYear1,
   salaryYear10,
   salaryYear1Method,
@@ -119,23 +148,16 @@ export default function AdmissionsOverview({
     return () => observer.disconnect();
   }, [hasAnimated, percentage, circumference]);
 
-  // ── Compute SAT bar widths from score strings ──
-  const parseSatBarPercent = (rangeStr: string, maxScore: number): number => {
-    if (!rangeStr || rangeStr === "N/A") return 75; // sensible fallback
-    const nums = rangeStr.match(/\d+/g);
-    if (!nums || nums.length === 0) return 75;
-    if (nums.length >= 2) {
-      // Range like "690 - 840" → use midpoint
-      const mid = (parseInt(nums[0]) + parseInt(nums[1])) / 2;
-      return Math.min(Math.round((mid / maxScore) * 100), 100);
-    }
-    // Single value like "1203"
-    return Math.min(Math.round((parseInt(nums[0]) / maxScore) * 100), 100);
-  };
-
-  const satRwBarPct = parseSatBarPercent(satReadingWriting, 800);
-  const satMathBarPct = parseSatBarPercent(satMath, 800);
-  const satAvgBarPct = parseSatBarPercent(satAverage, 1600);
+  // ── SAT percentile ranges (25th–75th) on the 200–800 scale ──
+  const satRows = [
+    {
+      label: "SAT Evidence-Based Reading & Writing",
+      range: parseSatRange(satReadingWriting),
+    },
+    { label: "SAT Math", range: parseSatRange(satMath) },
+  ].filter(
+    (r): r is { label: string; range: NonNullable<SatRange> } => r.range !== null,
+  );
 
   // ── Outcomes card count-up animation ──
   const outcomesRef = useRef<HTMLDivElement>(null);
@@ -210,8 +232,8 @@ export default function AdmissionsOverview({
         </h2>
       </div>
 
-      {/* Acceptance Rate + SAT Bars */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+      {/* Acceptance Rate + SAT percentile ranges */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center">
         {/* Left — Animated circular progress card */}
         <div
           ref={cardRef}
@@ -228,7 +250,6 @@ export default function AdmissionsOverview({
               viewBox="0 0 170 170"
               className="w-full h-full"
             >
-              {/* Gray background track with white inner fill */}
               <circle
                 cx="85"
                 cy="85"
@@ -237,7 +258,6 @@ export default function AdmissionsOverview({
                 stroke="#CBD5E1"
                 strokeWidth={strokeWidth}
               />
-              {/* Blue active progress segment — animated via CSS transition */}
               <circle
                 cx="85"
                 cy="85"
@@ -256,7 +276,7 @@ export default function AdmissionsOverview({
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-3xl font-black font-lexend text-slate-900  border-slate-900 pb-0.5 leading-none">
+              <span className="text-3xl font-black font-lexend text-slate-900 pb-0.5 leading-none">
                 {hasAnimated
                   ? animatedPercent >= percentage
                     ? admissionRate
@@ -265,73 +285,67 @@ export default function AdmissionsOverview({
               </span>
             </div>
           </div>
-          <p className="text-base font-bold font-lexend text-slate-900 border-slate-900 pb-0.5 inline-block">
-            {competitiveness}
-          </p>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-sm font-semibold text-slate-500 font-lexend">
+              Acceptance Rate
+            </p>
+            {parsedRate > 0 && (
+              <span className="rounded-full bg-[#2054FE]/10 px-3 py-1 text-sm font-bold font-lexend text-[#2054FE]">
+                {competitiveness}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Right — Animated SAT bars */}
+        {/* Right — SAT middle-50% range indicators */}
         <div className="flex flex-col gap-6 justify-center">
-          {/* SAT Reading & Writing */}
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-bold text-slate-900 font-lexend">
-                SAT Evidence-Based Reading & Writing
-              </span>
-              <span className="text-sm font-bold text-slate-900 font-lexend">
-                {satReadingWriting}
-              </span>
-            </div>
-            <div className="h-3 rounded-full bg-[#E2E8F0] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[#2054FE]"
-                style={{
-                  width: hasAnimated ? `${satRwBarPct}%` : "0%",
-                  transition: "width 1s cubic-bezier(0.4, 0, 0.2, 1) 0.3s",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* SAT Math */}
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-bold text-slate-900 font-lexend">
-                SAT Math
-              </span>
-              <span className="text-sm font-bold text-slate-900 font-lexend">
-                {satMath}
-              </span>
-            </div>
-            <div className="h-3 rounded-full bg-[#E2E8F0] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[#2054FE]"
-                style={{
-                  width: hasAnimated ? `${satMathBarPct}%` : "0%",
-                  transition: "width 1s cubic-bezier(0.4, 0, 0.2, 1) 0.5s",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* SAT Average */}
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-bold text-slate-900 font-lexend">
-              SAT Average (Overall)
-            </span>
-            <span className="text-sm font-bold text-slate-900 font-lexend">
-              {satAverage}
-            </span>
-            <div className="h-3 rounded-full bg-[#E2E8F0] overflow-hidden">
-              <div
-                className="h-full rounded-full bg-[#2054FE]"
-                style={{
-                  width: hasAnimated ? `${satAvgBarPct}%` : "0%",
-                  transition: "width 1s cubic-bezier(0.4, 0, 0.2, 1) 0.7s",
-                }}
-              />
-            </div>
-          </div>
+          {satRows.length > 0 && (
+            <>
+              {satRows.map((row) => (
+                <div key={row.label} className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center gap-4">
+                    <span className="text-sm font-bold text-slate-900 font-lexend">
+                      {row.label}
+                    </span>
+                    <span className="text-sm font-bold text-slate-900 font-lexend whitespace-nowrap">
+                      {row.range.low} – {row.range.high}
+                    </span>
+                  </div>
+                  <div
+                    className="relative h-3 rounded-full bg-[#E2E8F0]"
+                    role="img"
+                    aria-label={`${row.label}: ${row.range.low} to ${row.range.high} on a ${SAT_MIN} to ${SAT_MAX} scale`}
+                  >
+                    <div
+                      className="absolute top-0 h-full rounded-full bg-[#2054FE]"
+                      style={{
+                        left: `${row.range.leftPct}%`,
+                        width: hasAnimated ? `${row.range.widthPct}%` : "0%",
+                        transition:
+                          "width 1s cubic-bezier(0.4, 0, 0.2, 1) 0.3s",
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[11px] font-medium text-slate-400 font-lexend">
+                    <span>{SAT_MIN}</span>
+                    <span>{SAT_MAX}</span>
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-slate-500">
+                SAT ranges represent the middle 50% (25th–75th percentile).
+              </p>
+            </>
+          )}
+          {onViewAdmissions && (
+            <button
+              type="button"
+              onClick={onViewAdmissions}
+              className="self-start text-sm font-semibold text-[#2563EB] hover:underline font-lexend"
+            >
+              View admission details →
+            </button>
+          )}
         </div>
       </div>
 
