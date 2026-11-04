@@ -31,7 +31,7 @@ export default function HeroIntro() {
       >
         The Neutral Way to Choose a
         <span className="text-[#3b5bdb]"> U.S. </span>
-        <span> Degrees </span>
+        <span> Degree </span>
       </h1>
 
       {/* Trust badges */}

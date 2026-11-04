@@ -26,7 +26,7 @@ export default function Pagination({
       <select
         value={pageSize}
         onChange={(e) => onPageSizeChange(Number(e.target.value))}
-        className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="rounded-full border border-gray-200 bg-white px-3 py-2 sm:py-1 min-h-11 sm:min-h-0 text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {pageSizeOptions.map((size) => (
           <option key={size} value={size}>
@@ -96,12 +96,12 @@ export default function Pagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12 mb-8">
-      <div className="flex items-center gap-1">
+    <div className="flex flex-col md:flex-row md:flex-wrap items-center justify-center gap-3 md:gap-4 mt-12 mb-8 max-w-full">
+      <div className="flex flex-wrap items-center justify-center gap-1">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft size={16} />
         </button>
@@ -110,7 +110,7 @@ export default function Pagination({
           item === "ellipsis-start" || item === "ellipsis-end" ? (
             <span
               key={`${item}-${idx}`}
-              className="w-8 h-8 flex items-center justify-center text-gray-400"
+              className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center text-gray-400"
             >
               <MoreHorizontal size={14} />
             </span>
@@ -118,7 +118,7 @@ export default function Pagination({
             <button
               key={item}
               onClick={() => onPageChange(item)}
-              className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition ${
+              className={`w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-sm font-bold transition ${
                 currentPage === item
                   ? "bg-blue-600 text-white shadow-sm"
                   : "text-gray-600 hover:bg-gray-100 font-medium"
@@ -132,7 +132,7 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-11 h-11 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronRight size={16} />
         </button>

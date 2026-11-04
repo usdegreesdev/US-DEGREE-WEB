@@ -147,7 +147,7 @@ export default function StatsGrid({
   }, [hasAnimated]);
 
   return (
-    <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 gap-3 py-2">
+    <div ref={gridRef} className="grid grid-cols-1 min-[360px]:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 py-2">
       {stats.map((stat, i) => (
         <div
           key={stat.label}
