@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Heart, Clock, BookOpen, MapPin } from "lucide-react";
 import { Button } from "antd";
+import CollegeLogo from "../college/CollegeLogo";
 import CompareIconAnimation from "./CompareIconAnimation";
 import type { ResultCardViewProps } from "./resultCardTypes";
 
@@ -59,6 +60,7 @@ export default function ResultCardDesktop({
   medianSalary,
   roi,
   logoColor,
+  collegeId,
   universityHref,
   formattedSchoolUrl,
   shouldShowFit,
@@ -77,11 +79,13 @@ export default function ResultCardDesktop({
       {/* Top Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex gap-4 items-start">
-          <div
-            className={`w-10 h-10 rounded-lg ${logoColor} flex items-center justify-center text-white font-bold text-xl shrink-0`}
-          >
-            {university.charAt(0)}
-          </div>
+          <CollegeLogo
+            unitid={collegeId}
+            name={university}
+            className={`w-10 h-10 rounded-lg ${logoColor} flex items-center justify-center shrink-0`}
+            textClassName="text-white font-bold text-xl"
+            sizes="40px"
+          />
           <div>
             <Link href={universityHref}>
               <h2 className="text-base font-bold text-gray-900 hover:text-blue-600 transition-colors cursor-pointer">

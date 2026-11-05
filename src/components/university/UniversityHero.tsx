@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import Image from "next/image";
+import CollegeBanner from "../college/CollegeBanner";
+import CollegeLogo from "../college/CollegeLogo";
 import { Bookmark, MapPin, ExternalLink } from "lucide-react";
 import { UniversityHeroProps } from "@/types/university/UniversityHero";
 import { Button, message } from "antd";
@@ -172,14 +173,7 @@ export default function UniversityHero({
     <div className="relative w-full">
       {/* Banner Cover Image */}
       <div className="h-64 md:h-[300px] w-full overflow-hidden relative">
-        <Image
-          src="/images/2.jpg"
-          alt={`${name} campus`}
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
+        <CollegeBanner unitid={compareId} name={name} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"></div>
       </div>
 
@@ -187,13 +181,13 @@ export default function UniversityHero({
       <div className="w-full max-w-[2380px] mx-auto px-4 sm:px-6 md:px-10 lg:px-[86px] relative">
         <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6 -mt-12 md:-mt-20 relative z-10">
           {/* Logo Card */}
-          <div
-            className={`w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 md:mt-12 rounded-[24px] sm:rounded-[28px] ${logoColor || "bg-[#3F51B5]"} border-4 border-white shadow-xl flex items-center justify-center text-white shrink-0 select-none font-sans`}
-          >
-            <span className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight drop-shadow-md">
-              {name ? name.trim().charAt(0).toUpperCase() : "U"}
-            </span>
-          </div>
+          <CollegeLogo
+            unitid={compareId}
+            name={name}
+            className={`w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40 md:mt-12 rounded-[24px] sm:rounded-[28px] ${logoColor || "bg-[#3F51B5]"} border-4 border-white shadow-xl flex items-center justify-center shrink-0 select-none font-sans`}
+            textClassName="text-white text-4xl sm:text-5xl md:text-7xl font-black tracking-tight drop-shadow-md"
+            sizes="160px"
+          />
 
           {/* Name & Badges */}
           <div className="flex-1 pb-2">

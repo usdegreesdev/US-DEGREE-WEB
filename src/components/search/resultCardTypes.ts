@@ -45,6 +45,8 @@ export interface ResultCardViewProps {
   medianSalary?: string;
   roi?: string;
   logoColor: string;
+  /** unitid used to build the R2 logo URL. */
+  collegeId?: string;
   universityHref: ComponentProps<typeof Link>["href"];
   formattedSchoolUrl: string | null;
   shouldShowFit: boolean;

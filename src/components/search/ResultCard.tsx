@@ -376,6 +376,7 @@ export default function ResultCard({
     medianSalary,
     roi,
     logoColor,
+    collegeId: compareId,
     universityHref,
     formattedSchoolUrl,
     shouldShowFit,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Heart, Clock, MapPin } from "lucide-react";
 import { Button } from "antd";
+import CollegeLogo from "../college/CollegeLogo";
 import CompareIconAnimation from "./CompareIconAnimation";
 import type { ResultCardViewProps } from "./resultCardTypes";
 
@@ -40,6 +41,7 @@ export default function ResultCardMobile({
   medianSalary,
   roi,
   logoColor,
+  collegeId,
   universityHref,
   formattedSchoolUrl,
   shouldShowFit,
@@ -56,11 +58,13 @@ export default function ResultCardMobile({
       {/* 1. Header Row */}
       <div className="flex items-start justify-between gap-2 min-w-0">
         <div className="flex gap-2 items-center min-w-0 flex-1">
-          <div
-            className={`w-7 h-7 rounded-lg ${logoColor} flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm`}
-          >
-            {university.charAt(0)}
-          </div>
+          <CollegeLogo
+            unitid={collegeId}
+            name={university}
+            className={`w-7 h-7 rounded-lg ${logoColor} flex items-center justify-center shrink-0 shadow-sm`}
+            textClassName="text-white font-bold text-xs"
+            sizes="28px"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1 flex-wrap">
               <Link href={universityHref} className="min-w-0 max-w-full">

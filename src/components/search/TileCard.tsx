@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Heart, MapPin } from "lucide-react";
+import CollegeLogo from "../college/CollegeLogo";
 import { ResultCardProps } from "./ResultCard";
 import {
   toggleCompare as toggleCompareStore,
@@ -78,11 +79,13 @@ export default function TileCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex gap-1.5 sm:gap-2 items-center min-w-0">
-          <div
-            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg ${logoColor} flex items-center justify-center text-white font-bold text-sm sm:text-base shrink-0 shadow-sm`}
-          >
-            {university.charAt(0)}
-          </div>
+          <CollegeLogo
+            unitid={compareId}
+            name={university}
+            className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg ${logoColor} flex items-center justify-center shrink-0 shadow-sm`}
+            textClassName="text-white font-bold text-sm sm:text-base"
+            sizes="36px"
+          />
           <div className="min-w-0">
             <Link href={universityHref}>
               <h2 className="text-xs sm:text-sm font-bold text-gray-900 truncate hover:text-blue-600 transition-colors cursor-pointer">
