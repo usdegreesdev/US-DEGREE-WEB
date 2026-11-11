@@ -60,7 +60,7 @@ export default function MobileNavMenu({
         <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xl rounded-b-2xl overflow-hidden max-h-[82vh] overflow-y-auto">
           <div className="p-3.5 sm:p-4 flex flex-col gap-3">
             {/* Header Row: Section Label + User Profile Badge on Opposite Side */}
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            {/* <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                 Explore & Tools
               </span>
@@ -75,7 +75,7 @@ export default function MobileNavMenu({
                   </span>
                 </div>
               )}
-            </div>
+            </div> */}
 
             {/* Grid of Compact Tiles */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

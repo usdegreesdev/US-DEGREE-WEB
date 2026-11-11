@@ -233,11 +233,12 @@ export default function AdmissionsOverview({
       </div>
 
       {/* Acceptance Rate + SAT percentile ranges */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-center lg:gap-6">
+
         {/* Left — Animated circular progress card */}
         <div
           ref={cardRef}
-          className="flex flex-col items-center justify-center gap-5 py-10 px-8"
+          className="flex flex-col items-center justify-center gap-5 py-10 px-4 lg:px-8"
           style={{ background: "#F8FAFC", borderRadius: 20 }}
         >
           <div

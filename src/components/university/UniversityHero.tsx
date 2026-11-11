@@ -30,10 +30,8 @@ export default function UniversityHero({
   location,
   type,
   admissionRate,
-  tuitionFee,
   logoColor,
   tuitionData,
-  tuitionType = "in_state",
   schoolUrl,
   accreditor,
   cipCode,
@@ -151,24 +149,6 @@ export default function UniversityHero({
     }
   };
 
-  // Fallbacks if database has nulls or if tuitionData is absent
-  const tuitionInState = tuitionData?.tuition?.tuition_in_state ?? 12714;
-  const tuitionOutState = tuitionData?.tuition?.tuition_out_state ?? 25000;
-  const bookSupply = tuitionData?.tuition?.booksupply ?? 1200;
-  const roomBoardOnCampus = tuitionData?.housing?.roomboard_oncampus ?? 7348;
-  const otherExpenseOnCampus =
-    tuitionData?.expenses?.otherexpense_oncampus ?? 2832;
-
-  const stickerInState =
-    bookSupply + tuitionInState + roomBoardOnCampus + otherExpenseOnCampus;
-  const stickerOutState =
-    bookSupply + tuitionOutState + roomBoardOnCampus + otherExpenseOnCampus;
-
-  const activeStickerVal =
-    tuitionType === "in_state" ? stickerInState : stickerOutState;
-  const activeStickerPrice = tuitionData
-    ? `$${Math.round(activeStickerVal).toLocaleString()}`
-    : tuitionFee;
   return (
     <div className="relative w-full">
       {/* Banner Cover Image */}
@@ -179,7 +159,7 @@ export default function UniversityHero({
 
       {/* University Info Overlay Container */}
       <div className="w-full max-w-[2380px] mx-auto px-4 sm:px-6 md:px-10 lg:px-[86px] relative">
-        <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6 -mt-12 md:-mt-20 relative z-10">
+        <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 -mt-12 md:-mt-20 relative z-10">
           {/* Logo Card */}
           <CollegeLogo
             unitid={compareId}
@@ -190,105 +170,76 @@ export default function UniversityHero({
           />
 
           {/* Name & Badges */}
-          <div className="flex-1 pb-2">
-            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-3 py-1 rounded uppercase tracking-wider">
-                {type}
-              </span>
-              <span className="flex items-center gap-1 text-sm text-gray-500 font-medium">
-                <MapPin size={14} className="text-gray-400" /> {location}
-              </span>
+          <div className="flex-1 min-w-0 w-full md:pt-[92px] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-6">
+            <div className="min-w-0 text-center md:text-left">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1.5">
+                <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-3 py-1 rounded uppercase tracking-wider">
+                  {type}
+                </span>
+                <span className="flex items-center gap-1 text-sm text-gray-500 font-medium">
+                  <MapPin size={14} className="text-gray-400" /> {location}
+                </span>
+              </div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-blue-600 tracking-tight leading-tight break-words md:truncate md:whitespace-nowrap lg:overflow-visible lg:whitespace-normal lg:text-clip mb-1">
+                {name}
+              </h1>
+              {accreditor && (
+                <p className="text-xs md:text-sm text-slate-500 font-bold mt-1.5 uppercase tracking-wide">
+                  Accreditor - {accreditor}
+                </p>
+              )}
             </div>
-            <h1 className="text-xl sm:text-2xl md:text-4xl font-black text-blue-600 tracking-tight leading-tight break-words mb-1">
-              {name}
-            </h1>
-            {accreditor && (
-              <p className="text-xs md:text-sm text-slate-500 font-bold mt-1.5 uppercase tracking-wide">
-                Accreditor - {accreditor}
-              </p>
-            )}
-          </div>
-        </div>
 
-        {/* Stats Row */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between py-6 mt-4 border-b border-gray-200 gap-5">
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-4 sm:gap-8 md:gap-12 w-full">
-            {/* <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rank</p>
-              <p className="text-xl font-black text-red-600">{rank}</p>
-            </div> */}
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Admission Rate
-              </p>
-              <p className="text-xl font-black text-gray-900">
-                {admissionRate}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Tuition Fee
-              </p>
-              <p className="text-xl font-black text-gray-900">
-                {activeStickerPrice}
-              </p>
-            </div>
-          </div>
-
-          <div className="w-full md:w-auto mt-4 md:mt-0">
-            <div className="flex flex-col sm:flex-row md:flex-nowrap gap-3 font-medium">
+            {/* Actions — inline with the college name */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start lg:justify-end gap-2 sm:gap-3 w-full lg:w-auto shrink-0 font-medium">
               {formattedSchoolUrl && (
                 <a
                   href={formattedSchoolUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition shadow-sm w-full md:w-fit whitespace-nowrap"
+                  className="flex items-center justify-center gap-1.5 h-10 bg-blue-600 hover:bg-blue-700 text-white px-4 rounded-full text-xs sm:text-sm font-bold transition shadow-sm whitespace-nowrap"
                 >
                   <ExternalLink size={16} />
                   Visit Website
                 </a>
               )}
 
-              <div className="grid grid-cols-2 gap-3 w-full md:flex md:w-auto md:items-center">
-                <button
-                  onClick={handleToggleSave}
-                  disabled={isSaving}
-                  className={`flex items-center justify-center gap-1.5 h-10 px-4 rounded-full border text-sm font-medium transition w-full md:w-auto disabled:opacity-60 ${
-                    isSaved
-                      ? "bg-rose-400 border-rose-400 text-white hover:bg-rose-500 hover:border-rose-500"
-                      : "border-gray-300 text-gray-600 hover:text-rose-400 hover:border-rose-400"
-                  }`}
-                >
-                  <Bookmark
-                    size={16}
-                    className={isSaved ? "fill-current" : ""}
-                  />
-                  {isSaved ? "Saved" : "Save"}
-                </button>
+              <button
+                onClick={handleToggleSave}
+                disabled={isSaving}
+                className={`flex items-center justify-center gap-1.5 h-10 px-4 rounded-full border text-xs sm:text-sm font-medium transition disabled:opacity-60 ${
+                  isSaved
+                    ? "bg-rose-400 border-rose-400 text-white hover:bg-rose-500 hover:border-rose-500"
+                    : "border-gray-300 text-gray-600 hover:text-rose-400 hover:border-rose-400"
+                }`}
+              >
+                <Bookmark size={16} className={isSaved ? "fill-current" : ""} />
+                {isSaved ? "Saved" : "Save"}
+              </button>
 
-                <Button
-                  type={isCompared ? "primary" : "default"}
-                  onClick={toggleCompare}
-                  onMouseEnter={() => setIsHovered(true)}
-                  onMouseLeave={() => setIsHovered(false)}
-                  className={`!h-10 !px-4 sm:!px-5 !rounded-full !text-xs sm:!text-sm !font-semibold transition-all duration-300 w-full md:w-auto flex items-center justify-center ${
-                    isCompared
-                      ? "!bg-blue-600 !border-blue-600 !text-white hover:!bg-blue-700 hover:!border-blue-700 shadow-md"
-                      : "!text-gray-600 !border-gray-300 hover:!text-blue-600 hover:!border-blue-600"
-                  }`}
-                  icon={
-                    <CompareIconAnimation
-                      active={isCompared}
-                      hovered={isHovered}
-                    />
-                  }
-                >
-                  {isCompared ? "Added" : "Compare"}
-                </Button>
-              </div>
+              <Button
+                type={isCompared ? "primary" : "default"}
+                onClick={toggleCompare}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                className={`!h-10 !px-4 !rounded-full !text-xs sm:!text-sm !font-semibold transition-all duration-300 flex items-center justify-center ${
+                  isCompared
+                    ? "!bg-blue-600 !border-blue-600 !text-white hover:!bg-blue-700 hover:!border-blue-700 shadow-md"
+                    : "!text-gray-600 !border-gray-300 hover:!text-blue-600 hover:!border-blue-600"
+                }`}
+                icon={
+                  <CompareIconAnimation
+                    active={isCompared}
+                    hovered={isHovered}
+                  />
+                }
+              >
+                {isCompared ? "Added" : "Compare"}
+              </Button>
             </div>
           </div>
         </div>
+        <div className="mt-6 border-b border-gray-200" />
       </div>
     </div>
   );
