@@ -267,7 +267,7 @@ export default function CompareHeader({
     : "bg-gradient-to-r from-blue-600 to-indigo-600";
 
   const statusLine = isGenerated
-    ? "Report ready — opening it now"
+    ? "Report ready — Adding to profile now.."
     : isGenerating && generationStep >= 0
       ? GENERATION_STEPS[generationStep].label
       : isCheckingProfile
