@@ -9,7 +9,8 @@ import MobileMetricRow from "../MobileMetricRow";
 interface GraduationRateSectionProps {
   colleges: College[];
   onViewDetails: (id: string) => void;
-  averageGraduationRate: number;
+  /** null when no compared college has a value. */
+  averageGraduationRate: number | null;
   highestGraduationId: string;
 }
 
@@ -41,7 +42,7 @@ export default function GraduationRateSection({
               <span className={`font-mono font-bold ${isHighest ? "text-green-600" : "text-slate-900"}`}>
                 {(rate * 100).toFixed(0)}%
               </span>
-              {colleges.length > 1 && (
+              {colleges.length > 1 && diffPoints !== null && (
                 <div>
                   {isHighest ? (
                     <span className="text-[9px] font-black uppercase text-green-600 bg-green-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">

@@ -3,6 +3,8 @@
  * ranges"). Postgres numerics arrive as strings; null means missing, never 0.
  */
 
+import { toPercent } from "@/lib/fieldScale";
+
 type Loose = number | string | null | undefined;
 
 export interface AdmissionsGlanceInput {
@@ -70,7 +72,7 @@ export function buildAdmissionsGlance(
 
   return {
     visible: raw?.publish_publicly !== false,
-    acceptancePct: rate === null ? null : rate * 100,
+    acceptancePct: toPercent("admissions.admission_rate", rate),
     avgSat: avg === null || avg <= 0 ? null : avg,
     policyLabel: category ? (SAT_POLICY_LABELS[category] ?? null) : null,
     showPolicyTile: !closed,

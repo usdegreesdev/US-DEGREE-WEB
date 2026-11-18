@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, Clock, MapPin } from "lucide-react";
+import { Heart, MapPin } from "lucide-react";
 import { Button } from "antd";
 import CollegeLogo from "../college/CollegeLogo";
 import CompareIconAnimation from "./CompareIconAnimation";
@@ -36,7 +36,6 @@ export default function ResultCardMobile({
   schoolType,
   admissionRate,
   satAct,
-  duration,
   estCost,
   medianSalary,
   roi,
@@ -143,7 +142,7 @@ export default function ResultCardMobile({
                     ? "text-white stroke-current"
                     : "text-blue-600 stroke-current"
                 }
-                strokeDasharray={`${displayScore}, 100`}
+                strokeDasharray={`${displayScore ?? 0}, 100`}
                 strokeLinecap="round"
                 d={RING_PATH}
                 fill="none"
@@ -155,7 +154,7 @@ export default function ResultCardMobile({
                 shouldShowFit ? "text-white" : "text-blue-950"
               }`}
             >
-              {displayScore}
+              {displayScore ?? ""}
             </span>
           </div>
         </button>
@@ -167,9 +166,6 @@ export default function ResultCardMobile({
           <h3 className="text-xs font-bold text-rose-600 leading-tight truncate">
             {degree}
           </h3>
-          <span className="flex items-center gap-0.5 text-[9.5px] text-slate-500 shrink-0">
-            <Clock size={9} className="text-slate-400" /> {duration}
-          </span>
         </div>
 
         <div className="grid grid-cols-5 gap-1 pt-1 border-t border-slate-200/60 min-w-0">

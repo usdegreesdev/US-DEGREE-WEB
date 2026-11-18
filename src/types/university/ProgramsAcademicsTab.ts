@@ -18,7 +18,10 @@ export interface ProgramsAcademicsData {
   totalStudents?: number | null;
   completionRate?: string | number;
   facultyRatio?: string | number;
-  tuitionFee?: string;
+  /** In-state on-campus sticker price ("$24,094"), or null when not published. */
+  tuitionFee?: string | null;
+  /** Components missing from the sticker price when tuitionFee is null. */
+  tuitionFeeMissing?: string[];
   campusData?: CampusData | null;
   tuitionData?: TuitionData | null;
   programsData?: {

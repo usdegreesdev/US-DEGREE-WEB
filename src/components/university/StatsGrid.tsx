@@ -187,12 +187,12 @@ export default function StatsGrid({
           >
             {stat.label === "FAFSA APPLICATION" ? (
               <span style={{ paddingBottom: "2px" }}>
-                {hasAnimated ? animValues[i] : "0"}
+                {hasAnimated ? animValues[i] : stat.value}
               </span>
             ) : hasAnimated ? (
               animValues[i]
             ) : (
-              "0"
+              stat.value
             )}
           </p>
           {"subtitle" in stat && (

@@ -24,7 +24,7 @@ export interface TestingRequirementsDisclosure {
   badgeColor: TestingBadgeColor;
   supportingCopy: string;
   /** 1 → tooltip on an info icon, 2 → always-visible line, 3 → never reaches us. */
-  disclaimerTier: 1 | 2 | 3;
+  disclaimerTier: 1 | 2 | 3 | null;
   disclaimerText: string | null;
   /** When true, the acceptance rate stat MUST render alongside the badge. */
   showAdmissionRateRequired: boolean;

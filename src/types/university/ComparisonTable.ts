@@ -49,7 +49,6 @@ export interface CollegeDetail {
   satMath: string | null;
   satAverage: string | null;
   acceptanceRate: string;
-  graduates3yr: string;
   salaryYear1: number | null;
   salaryYear5: number | null;
   salaryYear10: number | null;
@@ -115,7 +114,6 @@ export interface TuitionResponse {
 
 export interface CampusResponse {
   campus?: { student_faculty_ratio?: ApiNumber };
-  repayment?: { all_borrowers_3yr?: ApiNumber };
   students?: {
     demographics?: { men?: ApiNumber; women?: ApiNumber };
     faculty?: { men?: ApiNumber; women?: ApiNumber };

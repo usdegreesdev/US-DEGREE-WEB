@@ -1,8 +1,15 @@
 import { retentionToPercent } from "@/lib/university/outcomeFormat";
+import {
+  inStateOnCampusSticker,
+  stickerDisplay,
+} from "@/lib/university/stickerPrice";
 import { getTestingRequirementsForCategory } from "@/data/testingRequirements";
 import { TestingRequirementsDisclosure } from "@/types/university/AdmissionsTabContent";
 import { UniversitySearchParams } from "@/types/university/apiResponses";
 import { UniversityApiBundle } from "./fetchUniversityData";
+import { formatPercent } from "@/lib/fieldScale";
+import { firstReal } from "@/lib/firstReal";
+import { NOT_PUBLISHED } from "@/lib/notPublished";
 
 const sanitizeSalary = (val: unknown) => {
   if (val === null || val === undefined) return null;
@@ -19,11 +26,14 @@ const sanitizeSalary = (val: unknown) => {
   return isNaN(num) ? null : num;
 };
 
-// Sticker-price fallbacks used when the tuition endpoint omits a component.
-const DEFAULT_TUITION_IN_STATE = 12714;
-const DEFAULT_BOOK_SUPPLY = 1200;
-const DEFAULT_ROOM_BOARD_ON_CAMPUS = 7348;
-const DEFAULT_OTHER_EXPENSE_ON_CAMPUS = 2832;
+/** The category's real disclaimer tier (1–3), or null — never a default 1. */
+const toDisclaimerTier = (
+  v: unknown,
+): TestingRequirementsDisclosure["disclaimerTier"] => {
+  const n = v === null || v === undefined || v === "" ? null : Number(v);
+  return n === 1 || n === 2 || n === 3 ? n : null;
+};
+
 
 export async function buildUniversityViewData(
   id: string,
@@ -49,37 +59,47 @@ export async function buildUniversityViewData(
   const location =
     city && state ? `${city}, ${state}` : city || state || "Unknown Location";
 
-  const type = sParams.type || collegeData?.school_type || "Private Research";
+  // Real school type or null — never a default label.
+  const type: string | null = sParams.type || collegeData?.school_type || null;
 
   const admissionRateRaw =
     sParams.admissionRate ||
     (apiData?.admissions?.admission_rate !== null &&
     apiData?.admissions?.admission_rate !== undefined
-      ? `${(Number(apiData.admissions.admission_rate) * 100).toFixed(1)}%`
+      ? formatPercent("admissions.admission_rate", apiData.admissions.admission_rate, 1)
       : null) ||
     "N/A";
 
-  // Calculate real sticker price if tuitionData is available
-  let calculatedStickerPriceString = "N/A";
-  if (tuitionData) {
-    const tuitionInState =
-      tuitionData.tuition?.tuition_in_state ?? DEFAULT_TUITION_IN_STATE;
-    const bookSupply = tuitionData.tuition?.booksupply ?? DEFAULT_BOOK_SUPPLY;
-    const roomBoardOnCampus =
-      tuitionData.housing?.roomboard_oncampus ?? DEFAULT_ROOM_BOARD_ON_CAMPUS;
-    const otherExpenseOnCampus =
-      tuitionData.expenses?.otherexpense_oncampus ??
-      DEFAULT_OTHER_EXPENSE_ON_CAMPUS;
-    const stickerInState =
-      bookSupply + tuitionInState + roomBoardOnCampus + otherExpenseOnCampus;
-    calculatedStickerPriceString = `$${Math.round(stickerInState).toLocaleString()}`;
-  }
+  // In-state, on-campus sticker price: the sum of the four published
+  // components, or not published with the missing components named — the
+  // same rule as the PDF report. Never a default for a missing component.
+  // Without a tuition response the components are unknown, so the total is
+  // whatever the search card carried in the URL (itself a NULL-propagating
+  // SQL sum), or not published.
+  const sticker = tuitionData
+    ? inStateOnCampusSticker({
+        tuition_in_state: tuitionData.tuition?.tuition_in_state,
+        roomboard_oncampus: tuitionData.housing?.roomboard_oncampus,
+        booksupply: tuitionData.tuition?.booksupply,
+        otherexpense_oncampus: tuitionData.expenses?.otherexpense_oncampus,
+      })
+    : null;
+  const urlTuition =
+    sParams.tuition !== undefined &&
+    sParams.tuition !== null &&
+    sParams.tuition !== "" &&
+    sParams.tuition !== "N/A"
+      ? sParams.tuition
+      : null;
+  const tuitionRaw: string | null = sticker
+    ? sticker.published
+      ? stickerDisplay(sticker)
+      : null
+    : urlTuition;
+  const tuitionFeeMissing: string[] = sticker ? sticker.missing : [];
 
-  const tuitionRaw = tuitionData
-    ? calculatedStickerPriceString
-    : sParams.tuition || "N/A";
-
-  const degree = sParams.degree || "Bachelor's Degree";
+  // The program title carried from search, or null — never a default degree.
+  const degree: string | null = sParams.degree || null;
 
   const cipCode = resolvedCip || "N/A";
 
@@ -90,18 +110,20 @@ export async function buildUniversityViewData(
       : null;
 
   const rawFacultyRatio =
-    campusData?.campus?.student_faculty_ratio ||
+    campusData?.campus?.student_faculty_ratio ??
     apiData?.students?.student_faculty_ratio;
-  const facultyRatio = rawFacultyRatio
-    ? String(rawFacultyRatio).includes(":")
-      ? String(rawFacultyRatio)
-      : `${rawFacultyRatio}:1`
-    : "N/A";
+  // Explicit null checks: a real 0 is not missing.
+  const facultyRatio =
+    rawFacultyRatio !== null && rawFacultyRatio !== undefined && rawFacultyRatio !== ""
+      ? String(rawFacultyRatio).includes(":")
+        ? String(rawFacultyRatio)
+        : `${rawFacultyRatio}:1`
+      : NOT_PUBLISHED;
 
   const rawRetention = apiData?.students?.retention_rate;
   const retentionRate =
     rawRetention !== null && rawRetention !== undefined
-      ? `${(Number(rawRetention) * 100).toFixed(0)}%`
+      ? formatPercent("students.retention_rate", rawRetention)
       : "N/A";
 
   const programs =
@@ -145,9 +167,11 @@ export async function buildUniversityViewData(
       ? `${apiData.admissions.sat_math_min} - ${apiData.admissions.sat_math_max}`
       : "N/A";
 
-  const applicants = apiData?.students?.fafsa_applications
-    ? String(apiData.students.fafsa_applications)
-    : "N/A";
+  const applicants =
+    apiData?.students?.fafsa_applications !== null &&
+    apiData?.students?.fafsa_applications !== undefined
+      ? String(apiData.students.fafsa_applications)
+      : NOT_PUBLISHED;
 
   // Testing-requirements disclosure. The overview endpoint returns a per-college
   // category code (`sat_disclosure_category`); the badge DISPLAY metadata comes
@@ -169,8 +193,7 @@ export async function buildUniversityViewData(
           badgeColor: (admissionsRaw.badgeColor ??
             "gray") as TestingRequirementsDisclosure["badgeColor"],
           supportingCopy: admissionsRaw.supportingCopy ?? "",
-          disclaimerTier: (Number(admissionsRaw.disclaimerTier) ||
-            1) as TestingRequirementsDisclosure["disclaimerTier"],
+          disclaimerTier: toDisclaimerTier(admissionsRaw.disclaimerTier),
           disclaimerText: admissionsRaw.disclaimerText ?? null,
           showAdmissionRateRequired: Boolean(
             admissionsRaw.showAdmissionRateRequired,
@@ -190,20 +213,23 @@ export async function buildUniversityViewData(
   const resolvedEarnings = outcomesData?.earnings_resolved;
 
   const salaryYear1 =
-    sanitizeSalary(resolvedEarnings?.year_1?.value) ||
-    sanitizeSalary(outcomesData?.earnings?.year_1) ||
-    sanitizeSalary(apiData?.earnings?.year_1) ||
-    null;
+    firstReal(
+      sanitizeSalary(resolvedEarnings?.year_1?.value),
+      sanitizeSalary(outcomesData?.earnings?.year_1),
+      sanitizeSalary(apiData?.earnings?.year_1),
+    );
   const salaryYear5 =
-    sanitizeSalary(resolvedEarnings?.year_5?.value) ||
-    sanitizeSalary(outcomesData?.earnings?.year_5) ||
-    sanitizeSalary(apiData?.earnings?.year_5) ||
-    null;
+    firstReal(
+      sanitizeSalary(resolvedEarnings?.year_5?.value),
+      sanitizeSalary(outcomesData?.earnings?.year_5),
+      sanitizeSalary(apiData?.earnings?.year_5),
+    );
   const salaryYear10 =
-    sanitizeSalary(resolvedEarnings?.year_10?.value) ||
-    sanitizeSalary(outcomesData?.earnings?.year_10) ||
-    sanitizeSalary(apiData?.earnings?.year_10) ||
-    null;
+    firstReal(
+      sanitizeSalary(resolvedEarnings?.year_10?.value),
+      sanitizeSalary(outcomesData?.earnings?.year_10),
+      sanitizeSalary(apiData?.earnings?.year_10),
+    );
 
   const salaryYear1Method =
     resolvedEarnings?.year_1?.method ??
@@ -228,18 +254,21 @@ export async function buildUniversityViewData(
   const salaryYear5Cohort = resolvedEarnings?.year_5?.cohort ?? null;
   const salaryYear10Cohort = resolvedEarnings?.year_10?.cohort ?? null;
 
-  const netRoi20Yr =
-    sParams.roi ||
-    outcomesData?.roi?.roi_20yr ||
-    apiData?.roi?.roi_20yr ||
-    null;
+  // A real 0 (or negative) ROI is a value; only a missing one falls through.
+  const netRoi20Yr = firstReal(
+    sParams.roi,
+    outcomesData?.roi?.roi_20yr,
+    apiData?.roi?.roi_20yr,
+  );
 
-  const rawGrowth =
-    outcomesData?.earnings?.growth_rate || apiData?.earnings?.growth_rate;
+  const rawGrowth = firstReal(
+    outcomesData?.earnings?.growth_rate,
+    apiData?.earnings?.growth_rate,
+  );
   const growthRate =
     rawGrowth !== undefined && rawGrowth !== null
       ? Number(rawGrowth)
-      : salaryYear1 && salaryYear10
+      : salaryYear1 !== null && salaryYear1 !== 0 && salaryYear10 !== null
         ? ((Number(salaryYear10) - Number(salaryYear1)) / Number(salaryYear1)) *
           100
         : null;
@@ -247,11 +276,14 @@ export async function buildUniversityViewData(
   // First-year retention as a 0–100 percent (the column is a 0–1 fraction).
   const retentionPct = retentionToPercent(rawRetention);
 
-  const debtIncomeRatio =
-    outcomesData?.debt_income_ratio?.debt_income_ratio !== null &&
-    outcomesData?.debt_income_ratio?.debt_income_ratio !== undefined
-      ? Number(outcomesData.debt_income_ratio.debt_income_ratio)
-      : null;
+  // School-level debt-to-income on the PDF report's basis (avg_debt ÷
+  // school median earnings), with its own inputs and the report's wording.
+  const dir = outcomesData?.debt_income_ratio;
+  const debtIncomeRatio = firstReal(dir?.debt_income_ratio);
+  const debtRatioDebt = firstReal(dir?.avg_debt);
+  const debtRatioEarnings = firstReal(dir?.basis_earnings);
+  const debtRatioBasisLabel = dir?.basis_label ?? null;
+  const debtRatioDefinition = dir?.definition ?? null;
 
   const credentialLevel =
     apiData?.program?.credential_level !== null &&
@@ -272,22 +304,18 @@ export async function buildUniversityViewData(
     name,
     location,
     type,
-    rank: "N/A",
     admissionRate: admissionRateRaw,
     tuitionFee: tuitionRaw,
+    tuitionFeeMissing,
     logoColor: "",
-    description:
-      apiData?.school?.school_description ||
-      `${name} is a distinguished institution situated in ${location}. It offers a wide range of academic opportunities and a vibrant student environment.`,
+    // The school's own description, or null — never a template.
+    description: apiData?.school?.school_description || null,
     degree,
     credentialLevel,
     credentialTitle,
-    format: "Full-time, On-campus",
-    financialAid: "Available",
     cipCode,
-    programDescription: degree
-      ? `The ${degree} program at ${name} is designed to provide comprehensive, top-tier training in the discipline, combining foundational principles with modern applications.`
-      : "Information about this program is currently being updated by the university.",
+    // No program description data exists; never a generated blurb.
+    programDescription: null,
     applicants,
     satReadingWriting,
     satMath,
@@ -317,6 +345,10 @@ export async function buildUniversityViewData(
     growthRate,
     retentionPct,
     debtIncomeRatio,
+    debtRatioDebt,
+    debtRatioEarnings,
+    debtRatioBasisLabel,
+    debtRatioDefinition,
     avgSalary,
 
     // Campus Data

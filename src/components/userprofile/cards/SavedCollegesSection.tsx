@@ -35,6 +35,7 @@ import {
   MAX_SAVED,
   type SavedChangeDetail,
 } from "../../search/useSavedColleges";
+import { formatPercent } from "@/lib/fieldScale";
 
 interface SavedCollegesSectionProps {
   view: "Grid" | "List";
@@ -87,14 +88,8 @@ async function enrichWithAnnualCost(
 }
 
 function formatRate(value: SavedCollege["acceptanceRate"]): string {
-  if (value === null || value === undefined || value === "") return "N/A";
-  const n = typeof value === "number" ? value : Number(value);
-  if (Number.isNaN(n)) return String(value);
-  // The backend returns admission rates as a 0–1 fraction (e.g. 0.7582); scale
-  // those up so we render "75.8%" instead of "0.7582%". Values already on a
-  // 0–100 scale are left as-is.
-  const pct = n <= 1 ? n * 100 : n;
-  return `${pct.toFixed(1)}%`;
+  // admissions.admission_rate is a 0–1 fraction (scale from lib/fieldScale).
+  return formatPercent("admissions.admission_rate", value, 1);
 }
 
 // Builds the /university/:id href, prefilling the program/credential query

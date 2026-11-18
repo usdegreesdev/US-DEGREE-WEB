@@ -96,7 +96,16 @@ export interface ApiOutcomes {
   };
   earnings_resolved?: ApiEarningsResolved;
   roi?: { roi_20yr?: ApiNum };
-  debt_income_ratio?: { debt_income_ratio?: ApiNum };
+  /** School-level, on the PDF report's basis (usdegrees-api routes/outcomes). */
+  debt_income_ratio?: {
+    debt_income_ratio?: ApiNum;
+    avg_debt?: ApiNum;
+    basis_earnings?: ApiNum;
+    basis_label?: string | null;
+    basis_api_field?: string | null;
+    earnings_fetched_on?: string | null;
+    definition?: string | null;
+  };
 }
 
 export interface ApiCollege {

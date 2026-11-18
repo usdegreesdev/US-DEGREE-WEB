@@ -16,7 +16,13 @@ export interface OutcomesSectionProps {
   growthRate?: number | string | null;
   // First-year retention, already a 0–100 percent (null = not published).
   retentionPct?: number | null;
+  /** Typical debt ÷ school median earnings (debt per $1), report basis. */
   debtIncomeRatio?: number | string | null;
-  loanPrincipal?: number | string | null;
-  avgSalary?: number | string | null;
+  /** The ratio's own inputs — school-level, not the program's figures. */
+  debtRatioDebt?: number | string | null;
+  debtRatioEarnings?: number | string | null;
+  /** e.g. "6 years after first enrolling". */
+  debtRatioBasisLabel?: string | null;
+  /** The report's definition text for the ratio. */
+  debtRatioDefinition?: string | null;
 }

@@ -55,8 +55,9 @@ function useHighlights(comparedColleges: College[]) {
         }
       }
 
-      if (c.medianSalary !== null && tuition !== null) {
-        const valueRatio = c.medianSalary / (tuition || 1);
+      // A $0 tuition has no salary-per-dollar ratio; never divide by a stand-in 1.
+      if (c.medianSalary !== null && tuition !== null && tuition !== 0) {
+        const valueRatio = c.medianSalary / tuition;
         valueRatioValues.push(valueRatio);
         if (valueRatio > values.bestValue) {
           values.bestValue = valueRatio;
@@ -91,7 +92,7 @@ function useHighlights(comparedColleges: College[]) {
 function useAverages(comparedColleges: College[]) {
   return useMemo(() => {
     if (comparedColleges.length === 0)
-      return { tuition: 0, graduationRate: 0, medianSalary: 0 };
+      return { tuition: null, graduationRate: null, medianSalary: null };
 
     const tuitionColleges = comparedColleges.filter(
       (c) => c.tuitionOutOfState !== null,
@@ -104,25 +105,25 @@ function useAverages(comparedColleges: College[]) {
     );
 
     const sumTuition = tuitionColleges.reduce(
-      (s, c) => s + (c.tuitionOutOfState ?? 0),
+      (s, c) => s + (c.tuitionOutOfState as number),
       0,
     );
     const sumGraduation = gradColleges.reduce(
-      (s, c) => s + (c.graduationRate ?? 0),
+      (s, c) => s + (c.graduationRate as number),
       0,
     );
     const sumSalary = salaryColleges.reduce(
-      (s, c) => s + (c.medianSalary ?? 0),
+      (s, c) => s + (c.medianSalary as number),
       0,
     );
 
     return {
       tuition:
-        tuitionColleges.length > 0 ? sumTuition / tuitionColleges.length : 0,
+        tuitionColleges.length > 0 ? sumTuition / tuitionColleges.length : null,
       graduationRate:
-        gradColleges.length > 0 ? sumGraduation / gradColleges.length : 0,
+        gradColleges.length > 0 ? sumGraduation / gradColleges.length : null,
       medianSalary:
-        salaryColleges.length > 0 ? sumSalary / salaryColleges.length : 0,
+        salaryColleges.length > 0 ? sumSalary / salaryColleges.length : null,
     };
   }, [comparedColleges]);
 }

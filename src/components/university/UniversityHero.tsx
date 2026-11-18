@@ -57,7 +57,7 @@ export default function UniversityHero({
         credentialTitle: hasCip ? (credentialTitle ?? undefined) : undefined,
         name,
         location,
-        schoolType: type,
+        schoolType: type ?? undefined,
         schoolUrl: schoolUrl ?? undefined,
       });
       if (result === "full") {
@@ -173,9 +173,11 @@ export default function UniversityHero({
           <div className="flex-1 min-w-0 w-full md:pt-[92px] flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-6">
             <div className="min-w-0 text-center md:text-left">
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-1.5">
-                <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-3 py-1 rounded uppercase tracking-wider">
-                  {type}
-                </span>
+                {type && (
+                  <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-3 py-1 rounded uppercase tracking-wider">
+                    {type}
+                  </span>
+                )}
                 <span className="flex items-center gap-1 text-sm text-gray-500 font-medium">
                   <MapPin size={14} className="text-gray-400" /> {location}
                 </span>

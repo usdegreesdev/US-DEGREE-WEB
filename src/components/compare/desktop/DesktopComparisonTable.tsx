@@ -16,7 +16,7 @@ import ActionsRow from "./rows/ActionsRow";
 
 interface DesktopComparisonTableProps {
   comparedColleges: College[];
-  averages: { tuition: number; graduationRate: number; medianSalary: number };
+  averages: { tuition: number | null; graduationRate: number | null; medianSalary: number | null };
   highlights: {
     lowestTuitionId: string;
     highestGraduationId: string;

@@ -13,6 +13,7 @@ import {
 import { AthleticsData } from "@/types/university/AthleticsData";
 import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
+import { NOT_PUBLISHED } from "@/lib/notPublished";
 
 interface RevenueExpenseChartProps {
   data: AthleticsData;
@@ -30,20 +31,16 @@ export default function RevenueExpenseChart({
   const revenue = toMillions(data.summary?.athleticRevenue);
   const expense = toMillions(data.summary?.athleticExpense);
 
+  // Only reported figures become bars — a missing one is no bar, not "$0".
   const chartData = [
-    {
-      label: "Revenue",
-      value: revenue ?? 0,
-      color: REVENUE_COLOR,
-    },
-    {
-      label: "Expense",
-      value: expense ?? 0,
-      color: EXPENSE_COLOR,
-    },
-  ];
+    { label: "Revenue", value: revenue, color: REVENUE_COLOR },
+    { label: "Expense", value: expense, color: EXPENSE_COLOR },
+  ].filter((d): d is { label: string; value: number; color: string } =>
+    d.value !== null,
+  );
+  const fmtM = (v: number | null) => (v === null ? NOT_PUBLISHED : `$${v} million`);
 
-  const ariaLabel = `Bar chart comparing reported athletics revenue of $${revenue ?? "N/A"} million against reported athletics expense of $${expense ?? "N/A"} million for ${data.surveyYear ?? "the most recent survey year"}.`;
+  const ariaLabel = `Bar chart of reported athletics revenue (${fmtM(revenue)}) and expense (${fmtM(expense)}) for ${data.surveyYear ?? "the most recent survey year"}.`;
 
   return (
     <div>

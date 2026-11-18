@@ -9,7 +9,8 @@ import MobileMetricRow from "../MobileMetricRow";
 interface SalarySectionProps {
   colleges: College[];
   onViewDetails: (id: string) => void;
-  averageSalary: number;
+  /** null when no compared college has a value. */
+  averageSalary: number | null;
   highestSalaryId: string;
 }
 
@@ -41,7 +42,7 @@ export default function SalarySection({
               <span className={`font-mono font-bold ${isTop ? "text-[#3F51B5]" : "text-slate-900"}`}>
                 ${salary.toLocaleString()}
               </span>
-              {colleges.length > 1 && (
+              {colleges.length > 1 && diffPercent !== null && (
                 <div>
                   {isTop ? (
                     <span className="text-[9px] font-black uppercase text-[#3F51B5] bg-blue-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">

@@ -1,7 +1,8 @@
 export interface AthleticsRosterRow {
   sport: string;
-  men: number;
-  women: number;
+  /** null when the team's roster size is not reported. */
+  men: number | null;
+  women: number | null;
 }
 
 export interface AthleticsSummary {

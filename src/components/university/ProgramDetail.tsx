@@ -12,9 +12,11 @@ export default function ProgramDetail({
 
   return (
     <div className="mb-10">
-      <h2 className="text-3xl font-bold text-slate-900 font-['Lexend']">
-        {degree}
-      </h2>
+      {degree && (
+        <h2 className="text-3xl font-bold text-slate-900 font-['Lexend']">
+          {degree}
+        </h2>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
         {credentialInfo && (
@@ -29,9 +31,11 @@ export default function ProgramDetail({
           <span className="ml-1 text-slate-700">{cipCode}</span>
         </span>
       </div>
-      <p className="mt-6 max-w-4xl text-base leading-8 text-slate-600 font-['Poppins']">
-        {description}
-      </p>
+      {description && (
+        <p className="mt-6 max-w-4xl text-base leading-8 text-slate-600 font-['Poppins']">
+          {description}
+        </p>
+      )}
     </div>
   );
 }

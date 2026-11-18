@@ -61,11 +61,8 @@ export default function ResultCard({
   degree,
   schoolType,
   admissionRate,
-  avgGpa,
   satAct,
-  duration,
   specializations,
-  matchScore,
   roi,
   estCost,
   avgSalary,
@@ -82,7 +79,7 @@ export default function ResultCard({
   const hasSatData = !!satAct && satAct !== "N/A";
 
   const [isCalculated, setIsCalculated] = useState(false);
-  const [currentScore, setCurrentScore] = useState(matchScore);
+  const [currentScore, setCurrentScore] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [tempGpa, setTempGpa] = useState<string>("");
   const [tempSat, setTempSat] = useState<string>("");
@@ -90,7 +87,8 @@ export default function ResultCard({
   const [gpaError, setGpaError] = useState("");
 
   const shouldShowFit = isCalculated && hasSatData;
-  const displayScore = shouldShowFit ? currentScore : matchScore;
+  // No number until the user calculates a fit — never a placeholder score.
+  const displayScore = shouldShowFit ? currentScore : null;
 
   // Canonical id for the comparison store (id and unitid are the same UNITID).
   const compareId = String(unitid ?? id ?? "");
@@ -236,7 +234,7 @@ export default function ResultCard({
         }
       } else {
         setIsCalculated(false);
-        setCurrentScore(matchScore);
+        setCurrentScore(null);
         setTempGpa("");
         setTempSat("");
       }
@@ -251,7 +249,7 @@ export default function ResultCard({
       window.removeEventListener(FIT_SCORE_EVENT, syncFromStorage);
       window.removeEventListener("storage", syncFromStorage);
     };
-  }, [admissionRate, satAct, matchScore]);
+  }, [admissionRate, satAct]);
 
   // After a signed-out user logs in and is returned to this page, re-open the
   // fit-score popup on the exact card they originally clicked.
@@ -299,7 +297,7 @@ export default function ResultCard({
   const handleClear = () => {
     writeFitStats(null, null); // clears both keys + broadcasts
     setIsCalculated(false);
-    setCurrentScore(matchScore);
+    setCurrentScore(null);
     setTempGpa("");
     setTempSat("");
     setSatError("");
@@ -365,11 +363,8 @@ export default function ResultCard({
     degree,
     schoolType,
     admissionRate,
-    avgGpa,
     satAct,
-    duration,
     specializations,
-    matchScore,
     estCost,
     medianSalary,
     roi,

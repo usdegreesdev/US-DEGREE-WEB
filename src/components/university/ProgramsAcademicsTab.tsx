@@ -6,6 +6,7 @@ import {
 } from "@/types/university/ProgramsAcademicsTab";
 import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
+import { NOT_PUBLISHED } from "@/lib/university/outcomeFormat";
 
 export default function ProgramsAcademicsTab({
   data,
@@ -16,22 +17,11 @@ export default function ProgramsAcademicsTab({
   const completionRate = data?.completionRate ?? "N/A";
   const facultyRatio = data?.facultyRatio ?? "N/A";
 
-  const toPercentVal = (val: unknown) => {
-    if (val === null || val === undefined) return null;
-    const num = Number(val);
-    if (isNaN(num)) return null;
-    return num < 2 ? Math.round(num * 100) : Math.round(num);
-  };
-
-  const rawRepayment = data?.campusData?.repayment?.all_borrowers_3yr;
-  const loanRepaymentVal = toPercentVal(rawRepayment);
-  const loanRepaymentDisplay =
-    loanRepaymentVal !== null ? `${loanRepaymentVal}%` : "N/A";
-
   // Dynamic selective label
   const parsedRate = parseFloat(admissionRate);
+  // A real 0% admit rate is a value (3 schools), not "N/A".
   const selectiveLabel =
-    !isNaN(parsedRate) && parsedRate > 0
+    Number.isFinite(parsedRate)
       ? parsedRate < 10
         ? "Highly Selective"
         : parsedRate < 30
@@ -39,18 +29,12 @@ export default function ProgramsAcademicsTab({
           : "Competitive"
       : "N/A";
 
-  // Dynamic tuition parser
-  let tuitionDisplay = "N/A";
-  if (data?.tuitionFee && data.tuitionFee !== "N/A") {
-    tuitionDisplay = data.tuitionFee;
-  } else if (data?.tuitionData?.tuition?.tuition_in_state) {
-    const parsed = parseFloat(
-      String(data.tuitionData.tuition.tuition_in_state).replace(/[^0-9.]/g, ""),
-    );
-    tuitionDisplay = isNaN(parsed)
-      ? String(data.tuitionData.tuition.tuition_in_state)
-      : `$${Math.round(parsed).toLocaleString()}`;
-  }
+  // In-state on-campus sticker price, or not published. Never in-state
+  // tuition alone in its place: that is a different, smaller figure.
+  const tuitionFee = data?.tuitionFee ?? null;
+  const tuitionPublished = tuitionFee !== null;
+  const tuitionDisplay = tuitionPublished ? tuitionFee : NOT_PUBLISHED;
+  const tuitionMissing = data?.tuitionFeeMissing ?? [];
 
   // ── Count-up animation for metric cards ──
   const metricsRef = useRef<HTMLDivElement>(null);
@@ -75,7 +59,7 @@ export default function ProgramsAcademicsTab({
           const tuitionNum = parseFloat(
             String(tuitionDisplay).replace(/[^0-9.]/g, ""),
           );
-          const enrollNum = totalStudents ?? 0;
+          const enrollNum = totalStudents ?? null;
 
           let step = 0;
           const timer = setInterval(() => {
@@ -92,7 +76,7 @@ export default function ProgramsAcademicsTab({
               const v = Math.round(eased * tuitionNum);
               setAnimTuition(`$${v.toLocaleString()}`);
             }
-            if (enrollNum > 0) {
+            if (enrollNum !== null && enrollNum > 0) {
               const v = Math.round(eased * enrollNum);
               setAnimEnrollment(v.toLocaleString());
             }
@@ -164,7 +148,7 @@ export default function ProgramsAcademicsTab({
             />
           </p>
           <p className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tight mb-0.5">
-            {metricsVisible ? animAdmission : "0%"}
+            {metricsVisible ? animAdmission : admissionRate}
           </p>
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">
             {selectiveLabel}
@@ -179,11 +163,25 @@ export default function ProgramsAcademicsTab({
               text={DATA_SOURCE_DISCLAIMERS.collegeScorecard}
             />
           </p>
-          <p className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tight mb-0.5">
-            {metricsVisible ? animTuition : "$0"}
+          <p
+            data-testid="tuition-value"
+            className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tight mb-0.5"
+          >
+            {tuitionPublished
+              ? metricsVisible
+                ? animTuition
+                : tuitionDisplay
+              : NOT_PUBLISHED}
           </p>
-          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">
-            Per Academic Year
+          <p
+            data-testid="tuition-caption"
+            className="text-[9px] font-bold text-gray-400 uppercase tracking-wide"
+          >
+            {tuitionPublished
+              ? "Per Academic Year"
+              : tuitionMissing.length > 0
+                ? `Missing: ${tuitionMissing.join(", ")}`
+                : "Per Academic Year"}
           </p>
         </div>
 
@@ -196,7 +194,11 @@ export default function ProgramsAcademicsTab({
             />
           </p>
           <p className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tight mb-0.5">
-            {metricsVisible ? animEnrollment : "0"}
+            {metricsVisible
+              ? animEnrollment
+              : totalStudents != null
+                ? totalStudents.toLocaleString()
+                : NOT_PUBLISHED}
           </p>
           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide">
             Undergrad & Grad
@@ -214,7 +216,7 @@ export default function ProgramsAcademicsTab({
           leadership in higher education.
         </p>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 gap-4 md:gap-6">
           {/* Card 1: Graduation Rate */}
           <div className="bg-[#F0FDF4] border border-[#DCFCE7]/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-3 shadow-sm">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white border border-[#DCFCE7] rounded-full flex items-center justify-center text-[#15803D] shrink-0">
@@ -279,40 +281,8 @@ export default function ProgramsAcademicsTab({
               </p>
             </div>
           </div>
-
-          {/* Card 3: Loan Repayment Success */}
-          <div className="bg-[#FFF1F2] border border-[#FFE4E6]/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-3 shadow-sm col-span-2 md:col-span-1">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white border border-[#FFE4E6] rounded-full flex items-center justify-center text-[#E11D48] shrink-0">
-              <svg
-                className="w-4 h-4 sm:w-5 sm:h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-2xl sm:text-3xl font-black text-[#E11D48] tracking-tight mb-0.5">
-                {loanRepaymentDisplay}
-              </p>
-              <p className="flex items-center gap-1 text-[10px] sm:text-xs font-bold text-gray-800 uppercase tracking-wider mb-1.5 sm:mb-2">
-                Loan Repayment (3-Yr)
-                <DisclaimerTooltip
-                  text={DATA_SOURCE_DISCLAIMERS.collegeScorecard}
-                />
-              </p>
-              <p className="text-[10px] sm:text-[11px] text-gray-500 leading-normal sm:leading-relaxed font-medium">
-                Graduates actively repaying student loans within three years of
-                entry.
-              </p>
-            </div>
-          </div>
+          {/* repayment.all_borrowers_3yr is not shown: it is 100 for every
+              school (not real data; see the column comment). */}
         </div>
       </div>
 

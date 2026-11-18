@@ -1,16 +1,17 @@
-export const NOT_PUBLISHED = "Not published";
+import { NOT_PUBLISHED } from "@/lib/notPublished";
+import { toPercent } from "@/lib/fieldScale";
+
+export { NOT_PUBLISHED };
 
 /**
- * students.retention_rate is a 0–1 FRACTION (unlike the graduation rate, which
- * is already a 0–100 percent). Returns a 0–100 percent; null stays null and a
- * real 0 stays 0. No defaults.
+ * students.retention_rate as a 0–100 percent (the column is a 0–1 fraction;
+ * the scale is declared once in lib/fieldScale). null stays null, a real 0
+ * stays 0.
  */
 export function retentionToPercent(
   val: number | string | null | undefined,
 ): number | null {
-  if (val === null || val === undefined || val === "") return null;
-  const num = Number(val);
-  return Number.isFinite(num) ? num * 100 : null;
+  return toPercent("students.retention_rate", val);
 }
 
 /** Formats a 0–100 percent. null → "Not published"; a real 0 → "0%". */

@@ -7,7 +7,8 @@ import DesktopRowLabel from "../DesktopRowLabel";
 
 interface SalaryRowProps {
   colleges: College[];
-  averageSalary: number;
+  /** null when no compared college has a value. */
+  averageSalary: number | null;
   highestSalaryId: string;
 }
 
@@ -41,7 +42,7 @@ export default function SalaryRow({ colleges, averageSalary, highestSalaryId }: 
                 ${salary.toLocaleString()}
               </span>
 
-              {colleges.length > 1 && (
+              {colleges.length > 1 && diffPercent !== null && (
                 <div className="mt-1 md:mt-2 flex items-center gap-0.5 md:gap-1">
                   {isTop ? (
                     <span className="text-[8px] md:text-[10px] font-black uppercase text-[#3F51B5] bg-blue-50 px-1.5 md:px-2 py-0.5 rounded-md">

@@ -1,6 +1,6 @@
 export interface ProgramDetailProps {
-  degree: string;
+  degree: string | null;
   cipCode: string;
-  description: string;
+  description: string | null;
   credentialLevel?: number | null;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import SalaryTrajectoryChart from "@/components/common/SalaryTrajectoryChart";
 import { X, DollarSign, Percent, Info, Users, BookOpen } from "lucide-react";
 import StatsGrid from "@/components/university/StatsGrid";
 import EarningsMethodBadge from "@/components/common/EarningsMethodBadge";
@@ -14,6 +15,9 @@ import {
 } from "@/types/university/ComparisonTable";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
 import { deriveCampusDemographics } from "@/lib/university/campusDemographics";
+import { formatPercent } from "@/lib/fieldScale";
+import { firstReal } from "@/lib/firstReal";
+import { NOT_PUBLISHED } from "@/lib/notPublished";
 
 interface CollegeDetailsModalProps {
   collegeId: string | null;
@@ -63,13 +67,6 @@ export default function CollegeDetailsModal({
 
     let cancelled = false;
 
-    const toPercentVal = (val: ApiNumber, fallback?: number): number | null => {
-      if (val === null || val === undefined)
-        return fallback !== undefined ? fallback : null;
-      const num = Number(val);
-      if (isNaN(num)) return fallback !== undefined ? fallback : null;
-      return num < 2 ? Math.round(num * 100) : Math.round(num);
-    };
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -171,18 +168,19 @@ export default function CollegeDetailsModal({
 
         // Campus data (as the page uses) first, then the overview's ratio.
         const rawFacultyRatio =
-          summaryData?.campus?.student_faculty_ratio ||
+          summaryData?.campus?.student_faculty_ratio ??
           overviewData?.students?.student_faculty_ratio;
-        const facultyRatio = rawFacultyRatio
-          ? String(rawFacultyRatio).includes(":")
-            ? String(rawFacultyRatio)
-            : `${rawFacultyRatio}:1`
-          : "N/A";
+        const facultyRatio =
+          rawFacultyRatio !== null && rawFacultyRatio !== undefined
+            ? String(rawFacultyRatio).includes(":")
+              ? String(rawFacultyRatio)
+              : `${rawFacultyRatio}:1`
+            : NOT_PUBLISHED;
 
         const rawRetention = overviewData?.students?.retention_rate;
         const retentionRate =
           rawRetention !== null && rawRetention !== undefined
-            ? `${(Number(rawRetention) * 100).toFixed(0)}%`
+            ? formatPercent("students.retention_rate", rawRetention)
             : "N/A";
 
         const programs =
@@ -241,14 +239,12 @@ export default function CollegeDetailsModal({
         const acceptanceRate =
           overviewData?.admissions?.admission_rate !== null &&
           overviewData?.admissions?.admission_rate !== undefined
-            ? `${(Number(overviewData.admissions.admission_rate) * 100).toFixed(1)}%`
+            ? formatPercent(
+                "admissions.admission_rate",
+                overviewData.admissions.admission_rate,
+                1,
+              )
             : "N/A";
-
-        const repaymentRate3YrVal = toPercentVal(
-          summaryData?.repayment?.all_borrowers_3yr,
-        );
-        const graduates3yr =
-          repaymentRate3YrVal !== null ? `${repaymentRate3YrVal}%` : "N/A";
 
         // Salaries — same per-metric cohort resolution as the main
         // Outcomes & Careers page (src/lib/university/buildUniversityViewData.ts):
@@ -261,20 +257,23 @@ export default function CollegeDetailsModal({
           outcomesData?.earnings_resolved ?? overviewData?.earnings_resolved;
 
         const salaryYear1 =
-          sanitizeSalary(resolvedEarnings?.year_1?.value) ||
-          sanitizeSalary(outcomesData?.earnings?.year_1) ||
-          sanitizeSalary(overviewData?.earnings?.year_1) ||
-          null;
+          firstReal(
+            sanitizeSalary(resolvedEarnings?.year_1?.value),
+            sanitizeSalary(outcomesData?.earnings?.year_1),
+            sanitizeSalary(overviewData?.earnings?.year_1),
+          );
         const salaryYear5 =
-          sanitizeSalary(resolvedEarnings?.year_5?.value) ||
-          sanitizeSalary(outcomesData?.earnings?.year_5) ||
-          sanitizeSalary(overviewData?.earnings?.year_5) ||
-          null;
+          firstReal(
+            sanitizeSalary(resolvedEarnings?.year_5?.value),
+            sanitizeSalary(outcomesData?.earnings?.year_5),
+            sanitizeSalary(overviewData?.earnings?.year_5),
+          );
         const salaryYear10 =
-          sanitizeSalary(resolvedEarnings?.year_10?.value) ||
-          sanitizeSalary(outcomesData?.earnings?.year_10) ||
-          sanitizeSalary(overviewData?.earnings?.year_10) ||
-          null;
+          firstReal(
+            sanitizeSalary(resolvedEarnings?.year_10?.value),
+            sanitizeSalary(outcomesData?.earnings?.year_10),
+            sanitizeSalary(overviewData?.earnings?.year_10),
+          );
 
         const salaryYear1Method =
           resolvedEarnings?.year_1?.method ??
@@ -323,7 +322,6 @@ export default function CollegeDetailsModal({
           satMath,
           satAverage,
           acceptanceRate,
-          graduates3yr,
           salaryYear1,
           salaryYear5,
           salaryYear10,
@@ -389,76 +387,13 @@ export default function CollegeDetailsModal({
     return `$${Math.round(num).toLocaleString()}`;
   };
 
-  // Trajectory Helper
-  let trajectoryPoints: { label: string; val: number }[] = [];
-  let coords: { x: number; y: number }[] = [];
-  let pathD = "";
-  let fillD = "";
-  const chartWidth = 600;
-  const chartHeight = 220;
-  const paddingLeft = 60;
-  const paddingRight = 40;
-  const paddingTop = 20;
-  const paddingBottom = 30;
-  let minVal = 40000;
-  let maxVal = 100000;
-  let safeDiff = 60000;
-  let hasSalaryData = false;
-
-  if (data) {
-    const s1 = data.salaryYear1;
-    const s5 = data.salaryYear5;
-    const s10 = data.salaryYear10;
-    hasSalaryData = s1 !== null || s5 !== null || s10 !== null;
-
-    const s1Val =
-      s1 ?? (s5 ? Math.round(s5 / 1.3) : s10 ? Math.round(s10 / 1.6) : 40000);
-    const s5Val = s5 ?? Math.round(s1Val * 1.3);
-    const s10Val = s10 ?? Math.round(s5Val * 1.25);
-    const s15Val = Math.round(s10Val * 1.25);
-    const s20Val = Math.round(s10Val * 1.5);
-
-    trajectoryPoints = [
-      { label: "ENTRY", val: s1Val },
-      { label: "YEAR 5", val: s5Val },
-      { label: "YEAR 10", val: s10Val },
-      { label: "YEAR 15", val: s15Val },
-      { label: "YEAR 20", val: s20Val },
-    ];
-
-    maxVal = s20Val * 1.1;
-    minVal = s1Val * 0.8;
-    const diffVal = maxVal - minVal;
-    safeDiff = diffVal === 0 ? 1 : diffVal;
-    const baselineY = chartHeight - paddingBottom;
-
-    coords = trajectoryPoints.map((pt, i) => {
-      const x =
-        paddingLeft +
-        (i * (chartWidth - paddingLeft - paddingRight)) /
-          (trajectoryPoints.length - 1);
-      const targetY =
-        chartHeight -
-        paddingBottom -
-        ((pt.val - minVal) * (chartHeight - paddingTop - paddingBottom)) /
-          safeDiff;
-      const y = baselineY + (targetY - baselineY) * animProgress;
-      return { x, y };
-    });
-
-    pathD = `M ${coords[0].x} ${coords[0].y}`;
-    for (let i = 0; i < coords.length - 1; i++) {
-      const curr = coords[i];
-      const next = coords[i + 1];
-      const cpX1 = curr.x + (next.x - curr.x) / 3;
-      const cpY1 = curr.y;
-      const cpX2 = curr.x + (2 * (next.x - curr.x)) / 3;
-      const cpY2 = next.y;
-      pathD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${next.x} ${next.y}`;
-    }
-
-    fillD = `${pathD} L ${coords[coords.length - 1].x} ${chartHeight - paddingBottom} L ${coords[0].x} ${chartHeight - paddingBottom} Z`;
-  }
+  // Salary trajectory: only the published year-1/5/10 points (see
+  // SalaryTrajectoryChart). Nothing interpolated, nothing past year 10.
+  const hasSalaryData =
+    !!data &&
+    (data.salaryYear1 !== null ||
+      data.salaryYear5 !== null ||
+      data.salaryYear10 !== null);
 
   return (
     <div
@@ -563,7 +498,7 @@ export default function CollegeDetailsModal({
                   <BookOpen size={14} className="text-[#3F51B5]" />
                   Program Metrics
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-[#FAFBFD] border border-slate-100 rounded-2xl p-5 shadow-sm">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">
                       Acceptance Rate
@@ -572,14 +507,8 @@ export default function CollegeDetailsModal({
                       {data.acceptanceRate}
                     </p>
                   </div>
-                  <div className="bg-[#FAFBFD] border border-slate-100 rounded-2xl p-5 shadow-sm">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">
-                      Repayment Rate (3-Year)
-                    </p>
-                    <p className="text-lg font-extrabold text-slate-900 mt-1">
-                      {data.graduates3yr}
-                    </p>
-                  </div>
+                  {/* No 3-year repayment tile: repayment.all_borrowers_3yr is 100
+                      for every school (not real data). */}
                   <div className="bg-[#FAFBFD] border border-slate-100 rounded-2xl p-5 shadow-sm">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">
                       Tuition (EST.) Per Year
@@ -732,124 +661,16 @@ export default function CollegeDetailsModal({
                     Salary Trajectory
                   </h4>
                   {hasSalaryData ? (
-                    <div className="w-full overflow-x-auto">
-                      <svg
-                        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                        className="w-full min-w-[500px] h-auto overflow-visible"
-                      >
-                        <defs>
-                          <linearGradient
-                            id="modalChartGradient"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                          >
-                            <stop
-                              offset="0%"
-                              stopColor="#3B82F6"
-                              stopOpacity="0.2"
-                            />
-                            <stop
-                              offset="100%"
-                              stopColor="#3B82F6"
-                              stopOpacity="0.0"
-                            />
-                          </linearGradient>
-                          <clipPath id="modalChartClip">
-                            <rect
-                              x="0"
-                              y="0"
-                              width={chartWidth * animProgress}
-                              height={chartHeight}
-                            />
-                          </clipPath>
-                        </defs>
-
-                        {/* Y Axis Grid Lines */}
-                        {[minVal, (minVal + maxVal) / 2, maxVal].map(
-                          (yVal, i) => {
-                            const y =
-                              chartHeight -
-                              paddingBottom -
-                              ((yVal - minVal) *
-                                (chartHeight - paddingTop - paddingBottom)) /
-                                safeDiff;
-                            return (
-                              <g key={i}>
-                                <line
-                                  x1={paddingLeft}
-                                  y1={y}
-                                  x2={chartWidth - paddingRight}
-                                  y2={y}
-                                  stroke="#F3F4F6"
-                                  strokeWidth="1.5"
-                                />
-                                <text
-                                  x={paddingLeft - 10}
-                                  y={y + 4}
-                                  textAnchor="end"
-                                  className="text-[9px] font-black text-gray-400"
-                                >
-                                  {formatCurrency(yVal)}
-                                </text>
-                              </g>
-                            );
-                          },
-                        )}
-
-                        {/* Area Fill */}
-                        <path
-                          d={fillD}
-                          fill="url(#modalChartGradient)"
-                          clipPath="url(#modalChartClip)"
-                        />
-
-                        {/* Line Curve */}
-                        <path
-                          d={pathD}
-                          fill="none"
-                          stroke="#3B82F6"
-                          strokeWidth="3.5"
-                          strokeLinecap="round"
-                          clipPath="url(#modalChartClip)"
-                        />
-
-                        {/* Circle Markers */}
-                        {coords.map((coord, i) => {
-                          const dotVisible =
-                            chartWidth * animProgress >= coord.x;
-                          return (
-                            <circle
-                              key={i}
-                              cx={coord.x}
-                              cy={coord.y}
-                              r={dotVisible ? 5 : 0}
-                              fill="#FFFFFF"
-                              stroke="#3B82F6"
-                              strokeWidth="3.5"
-                              style={{
-                                transition:
-                                  "r 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                              }}
-                            />
-                          );
-                        })}
-
-                        {/* X Axis Labels */}
-                        {coords.map((coord, i) => (
-                          <text
-                            key={i}
-                            x={coord.x}
-                            y={chartHeight - paddingBottom + 18}
-                            textAnchor="middle"
-                            className="text-[9px] font-black fill-gray-400 uppercase tracking-wider"
-                          >
-                            {trajectoryPoints[i].label}
-                          </text>
-                        ))}
-                      </svg>
-                    </div>
+                    <SalaryTrajectoryChart
+                      year1={data.salaryYear1}
+                      year5={data.salaryYear5}
+                      year10={data.salaryYear10}
+                      animProgress={animProgress}
+                      gradientId="modalChartGradient"
+                      clipId="modalChartClip"
+                      formatCurrency={formatCurrency}
+                      compact
+                    />
                   ) : (
                     <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400">
                       <p className="text-xs font-semibold">
@@ -882,12 +703,12 @@ export default function CollegeDetailsModal({
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#FF5A5A] rounded-full transition-all"
-                          style={{
-                            width: `${(data.menStudentsPct ?? 0) * animProgress}%`,
-                          }}
-                        />
+                        {data.menStudentsPct !== null && (
+                          <div
+                            className="h-full bg-[#FF5A5A] rounded-full transition-all"
+                            style={{ width: `${data.menStudentsPct * animProgress}%` }}
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -902,12 +723,12 @@ export default function CollegeDetailsModal({
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#FF5A5A] rounded-full transition-all"
-                          style={{
-                            width: `${(data.menFacultyPct ?? 0) * animProgress}%`,
-                          }}
-                        />
+                        {data.menFacultyPct !== null && (
+                          <div
+                            className="h-full bg-[#FF5A5A] rounded-full transition-all"
+                            style={{ width: `${data.menFacultyPct * animProgress}%` }}
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -922,12 +743,12 @@ export default function CollegeDetailsModal({
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#EC4899] rounded-full transition-all"
-                          style={{
-                            width: `${(data.womenStudentsPct ?? 0) * animProgress}%`,
-                          }}
-                        />
+                        {data.womenStudentsPct !== null && (
+                          <div
+                            className="h-full bg-[#EC4899] rounded-full transition-all"
+                            style={{ width: `${data.womenStudentsPct * animProgress}%` }}
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -942,12 +763,12 @@ export default function CollegeDetailsModal({
                         </span>
                       </div>
                       <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#EC4899] rounded-full transition-all"
-                          style={{
-                            width: `${(data.womenFacultyPct ?? 0) * animProgress}%`,
-                          }}
-                        />
+                        {data.womenFacultyPct !== null && (
+                          <div
+                            className="h-full bg-[#EC4899] rounded-full transition-all"
+                            style={{ width: `${data.womenFacultyPct * animProgress}%` }}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

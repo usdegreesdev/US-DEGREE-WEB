@@ -22,6 +22,7 @@ import { extractSearchRows } from "../../lib/search/searchParams";
 import { EarningsFillMethod } from "@/types/earningsMethod";
 import { getProgramSearchTerm } from "../../data/profileOptions";
 import { retentionToPercent } from "@/lib/university/outcomeFormat";
+import { toPercent } from "@/lib/fieldScale";
 
 /** A single matched college, ready to render. Rates are percentages (0–100). */
 export interface CollegeMatch {
@@ -112,10 +113,10 @@ function sanitizeSalary(
 
 // Normalise `admission_rate` (a 0–1 fraction) to a 0–100 percentage. Do NOT use
 // for `completion_rate` (always a 0–100 percent).
-function toPercent(val: number | string | null | undefined): number | null {
-  const num = toNum(val);
-  if (num === null) return null;
-  return num <= 1 ? num * 100 : num;
+function admissionRatePct(
+  val: number | string | null | undefined,
+): number | null {
+  return toPercent("admissions.admission_rate", val);
 }
 
 /**
@@ -252,7 +253,7 @@ export function useCollegeMatches(profile: StudentProfile): {
             .includes("private"),
           tuition: toNum(r.tuition_in_state),
           costOfAttendance: null, // filled in by the enrichment pass below
-          acceptanceRate: toPercent(r.admission_rate),
+          acceptanceRate: admissionRatePct(r.admission_rate),
           retentionRate: null, // filled in by the enrichment pass below
           graduationRate: null, // filled in by the enrichment pass below
           medianSalary1yr: null,

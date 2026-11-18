@@ -4,10 +4,10 @@ export interface UniversityHeroProps {
   id?: string | number;
   name: string;
   location: string;
-  type: string;
-  rank: string;
+  type: string | null;
   admissionRate: string;
-  tuitionFee: string;
+  /** Sticker price display string, or null when not published. */
+  tuitionFee: string | null;
   logoColor: string;
   tuitionData?: TuitionData | null;
   tuitionType?: "in_state" | "out_state";

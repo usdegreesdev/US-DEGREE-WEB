@@ -17,7 +17,6 @@ export interface CampusData {
     choice_aid?: ApiNum;
   };
   repayment?: {
-    all_borrowers_3yr?: ApiNum;
     graduates_3yr?: ApiNum;
     non_completers_3yr?: ApiNum;
     yr1_overall?: ApiNum;

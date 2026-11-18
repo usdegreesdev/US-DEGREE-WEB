@@ -4,12 +4,12 @@ import { useState } from "react";
 import {
   GraduationCap,
   Building2,
-  DollarSign,
   Clock,
   Layers,
   Info,
 } from "lucide-react";
 import { CourseSummarySideCardProps } from "@/types/university/CourseSummarySideCard";
+import { NOT_PUBLISHED } from "@/lib/notPublished";
 import { getCredentialLevelInfo } from "@/constants/credentialLevel";
 import { trackApplyClick } from "@/lib/auth/api";
 import { trackEvent } from "@/lib/analytics";
@@ -18,7 +18,6 @@ import { toSafeHttpUrl } from "@/lib/url/httpUrl";
 export default function CourseSummarySideCard({
   degree,
   programType,
-  financialAid,
   schoolUrl,
   credentialLevel,
   credentialTitle,
@@ -75,7 +74,7 @@ export default function CourseSummarySideCard({
             Degree
           </span>
           <span className="text-sm font-bold text-slate-900 text-right max-w-[180px] leading-tight">
-            {degree}
+            {degree ?? NOT_PUBLISHED}
           </span>
         </div>
         <div className="flex items-center justify-between">
@@ -84,18 +83,10 @@ export default function CourseSummarySideCard({
             Program Type
           </span>
           <span className="text-sm font-medium text-slate-800">
-            {credentialTitle || programType || "N/A"}
+            {credentialTitle || programType || NOT_PUBLISHED}
           </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-2 text-sm text-slate-500">
-            <DollarSign size={16} className="text-slate-400" />
-            Financial Aid
-          </span>
-          <span className="text-sm font-semibold text-emerald-500">
-            {financialAid}
-          </span>
-        </div>
+        {/* No "Financial Aid: Available" row: it was a constant, not data. */}
       </div>
 
       {/* Zone 2 — category-level credential info. Hidden entirely (divider

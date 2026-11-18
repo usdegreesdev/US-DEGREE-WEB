@@ -1,24 +1,27 @@
-// Defensive parse-or-zero fallback in case a malformed value slips through
-// from the backend (see known raw-currency-string data-quality issue).
-const toFiniteNumber = (val: number | null | undefined): number => {
+import { NOT_PUBLISHED } from "@/lib/notPublished";
+
+// A malformed (non-finite) value is missing, never 0 / "$0".
+const toFiniteNumber = (val: number | null | undefined): number | null => {
+  if (val === null || val === undefined) return null;
   const num = Number(val);
-  return Number.isFinite(num) ? num : 0;
+  return Number.isFinite(num) ? num : null;
 };
 
 export const formatCurrency = (val: number | null | undefined): string => {
-  if (val == null) return "N/A";
+  const num = toFiniteNumber(val);
+  if (num === null) return NOT_PUBLISHED;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
-  }).format(toFiniteNumber(val));
+  }).format(num);
 };
 
 export const formatCurrencyAbbreviated = (
   val: number | null | undefined,
 ): string => {
-  if (val == null) return "N/A";
   const num = toFiniteNumber(val);
+  if (num === null) return NOT_PUBLISHED;
   const abs = Math.abs(num);
   if (abs >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
   if (abs >= 1_000) return `$${Math.round(num / 1_000)}K`;
@@ -26,6 +29,7 @@ export const formatCurrencyAbbreviated = (
 };
 
 export const formatNumber = (val: number | null | undefined): string => {
-  if (val == null) return "N/A";
-  return new Intl.NumberFormat("en-US").format(toFiniteNumber(val));
+  const num = toFiniteNumber(val);
+  if (num === null) return NOT_PUBLISHED;
+  return new Intl.NumberFormat("en-US").format(num);
 };

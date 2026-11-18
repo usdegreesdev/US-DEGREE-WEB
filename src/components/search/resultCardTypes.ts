@@ -14,11 +14,8 @@ export interface ResultCardProps {
   degree: string;
   schoolType?: string;
   admissionRate: string;
-  avgGpa: string;
   satAct: string;
-  duration: string;
   specializations: string;
-  matchScore: number;
   avgSalary?: string;
   estCost?: string;
   medianSalary?: string;
@@ -34,11 +31,8 @@ export interface ResultCardViewProps {
   degree: string;
   schoolType?: string;
   admissionRate: string;
-  avgGpa: string;
   satAct: string;
-  duration: string;
   specializations: string;
-  matchScore: number;
   estCost?: string;
   medianSalary?: string;
   roi?: string;
@@ -48,8 +42,9 @@ export interface ResultCardViewProps {
   universityHref: ComponentProps<typeof Link>["href"];
   formattedSchoolUrl: string | null;
   shouldShowFit: boolean;
-  /** Score to display: the user's fit score when calculated, else matchScore. */
-  displayScore: number;
+  /** The user's calculated fit score, or null until they calculate one —
+   *  never a placeholder number. */
+  displayScore: number | null;
   isCompared: boolean;
   isSavedCollege: boolean;
   isSaving: boolean;

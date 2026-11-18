@@ -8,9 +8,15 @@ import { QuestionCircleOutlined } from "@ant-design/icons";
 import { TuitionCostsSectionProps } from "@/types/university/TuitionCostsSection";
 import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
+import { NOT_PUBLISHED } from "@/lib/university/outcomeFormat";
+import { toPercent } from "@/lib/fieldScale";
+import {
+  stickerDisplay,
+  sumStickerComponents,
+} from "@/lib/university/stickerPrice";
 
 const fmt = (val: number | null | undefined): string => {
-  if (val == null || !Number.isFinite(val)) return "N/A";
+  if (val == null || !Number.isFinite(val)) return NOT_PUBLISHED;
   return (
     "$" +
     Math.round(val)
@@ -19,12 +25,6 @@ const fmt = (val: number | null | undefined): string => {
   );
 };
 
-// Sum that returns null if any operand is missing, so totals don't silently
-// treat a missing value as 0.
-const sumOrNull = (...vals: (number | null | undefined)[]): number | null =>
-  vals.some((v) => v == null)
-    ? null
-    : vals.reduce((a: number, b) => a + (b as number), 0);
 
 const getLoanMessage = (pct: number): string => {
   if (pct <= 19)
@@ -157,10 +157,12 @@ function AidStatCard({
         {description}
       </p>
       <div className="w-full h-2 rounded-full bg-[#E2E8F0] overflow-hidden mt-auto">
-        <div
-          className="h-full bg-[#0ACC4E] rounded-full"
-          style={{ width: `${(percent ?? 0) * progress}%` }}
-        />
+        {percent != null && (
+          <div
+            className="h-full bg-[#0ACC4E] rounded-full"
+            style={{ width: `${percent * progress}%` }}
+          />
+        )}
       </div>
     </div>
   );
@@ -247,10 +249,12 @@ export default function TuitionCostsSection({
   const stickerPriceByApi = tuitionData?.tuition?.sticker_price_by_api ?? null;
   const stickerPriceYear = tuitionData?.tuition?.sticker_price_year ?? null;
   const aidPercentage = tuitionData?.financial_aid?.aid_percentage ?? null;
+  const studentsWithLoanPct = toPercent(
+    "aid.students_with_any_loan",
+    tuitionData?.financial_aid?.students_with_any_loan,
+  );
   const studentsWithLoan =
-    tuitionData?.financial_aid?.students_with_any_loan != null
-      ? Math.round(tuitionData.financial_aid.students_with_any_loan * 100)
-      : null;
+    studentsWithLoanPct !== null ? Math.round(studentsWithLoanPct) : null;
   const loanMessage =
     studentsWithLoan != null ? getLoanMessage(studentsWithLoan) : "N/A";
 
@@ -268,12 +272,18 @@ export default function TuitionCostsSection({
 
   const activeTuition =
     tuitionType === "in_state" ? tuitionInState : tuitionOutState;
-  const activeStickerPrice = sumOrNull(
-    bookSupply,
-    activeTuition,
-    roomBoardOnCampus,
-    otherExpenseOnCampus,
-  );
+  // Sum of the published components, or not published with the missing ones
+  // named (same rule and names as the PDF report).
+  const activeSticker = sumStickerComponents([
+    [
+      tuitionType === "in_state" ? "in-state tuition" : "out-of-state tuition",
+      activeTuition,
+    ],
+    ["on-campus room and board", roomBoardOnCampus],
+    ["books and supplies", bookSupply],
+    ["on-campus other expenses", otherExpenseOnCampus],
+  ]);
+  const activeStickerPrice = activeSticker.total;
 
   const [sliderValue, setSliderValue] = useState(23144);
   const [incomeRange, setIncomeRange] = useState<BracketId>("0-30000");
@@ -372,8 +382,9 @@ export default function TuitionCostsSection({
       label: "In-State On-Campus sticker price",
       value: activeStickerPrice,
       bold: true,
+      display: activeSticker.published ? undefined : stickerDisplay(activeSticker),
     },
-  ];
+  ] as Array<{ label: string; value: number | null; bold: boolean; display?: string }>;
 
   return (
     <div ref={containerRef} className="flex flex-col gap-8 py-6 max-w-4xl">
@@ -447,9 +458,10 @@ export default function TuitionCostsSection({
                 {row.label}
               </span>
               <span
-                className={`text-sm text-[#334155] ${row.bold ? "font-extrabold" : "font-semibold"}`}
+                data-testid={row.bold ? "sticker-total" : undefined}
+                className={`text-sm text-right text-[#334155] ${row.bold ? "font-extrabold" : "font-semibold"}`}
               >
-                {fmt(row.value)}
+                {row.display ?? fmt(row.value)}
               </span>
             </div>
           ))}

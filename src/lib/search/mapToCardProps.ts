@@ -1,5 +1,6 @@
 import { SearchResult } from "@/types/search-details";
 import { getCollegeType } from "./searchFilters";
+import { formatPercent } from "@/lib/fieldScale";
 
 const hasValue = (value: number | string | null | undefined) =>
   value !== null && value !== undefined;
@@ -15,16 +16,13 @@ export const mapToCardProps = (result: SearchResult) => ({
   degree: result.program_title || "Unknown Degree",
   schoolType: getCollegeType(result) || "Unknown",
   admissionRate: hasValue(result.admission_rate)
-    ? `${(Number(result.admission_rate) * 100).toFixed(1)}%`
+    ? formatPercent("admissions.admission_rate", result.admission_rate, 1)
     : "N/A",
-  avgGpa: "N/A",
   satAct:
     hasValue(result.school_min_range) && hasValue(result.school_max_range)
       ? `${result.school_min_range} - ${result.school_max_range}`
       : "N/A",
-  duration: "4 Years", // Default fallback if not provided
   specializations: result.credential_title || "N/A",
-  matchScore: 0, // Placeholder
   avgSalary: hasValue(result.earnings_year_5)
     ? `$${Math.round(Number(result.earnings_year_5)).toLocaleString()}`
     : undefined,

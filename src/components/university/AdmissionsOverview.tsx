@@ -5,12 +5,21 @@ import { AdmissionsOverviewProps } from "@/types/university/AdmissionsOverview";
 import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import EarningsMethodBadge from "@/components/common/EarningsMethodBadge";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
+import { toPercent } from "@/lib/fieldScale";
+import { NOT_PUBLISHED } from "@/lib/notPublished";
+import { firstReal } from "@/lib/firstReal";
 
-const parseDisplayNumber = (value: string) =>
-  Number(value.replace(/[^0-9.]/g, ""));
+// "1,234" → 1234; "Not published" / "" / "N/A" → null (never 0).
+const parseDisplayNumber = (value: string): number | null => {
+  const digits = value.replace(/[^0-9.]/g, "");
+  if (digits === "") return null;
+  const n = Number(digits);
+  return Number.isFinite(n) ? n : null;
+};
 
-const formatDisplayNumber = (value: number): string => {
-  if (!Number.isFinite(value) || value <= 0) return "N/A";
+// null / non-finite → Not published; a real 0 renders "0".
+const formatDisplayNumber = (value: number | null): string => {
+  if (value === null || !Number.isFinite(value) || value < 0) return NOT_PUBLISHED;
   return Math.round(value)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -30,12 +39,13 @@ const formatCurrency = (
   return "$" + parts[0];
 };
 
+// earnings.growth_rate is already a percent and may be negative (−30 → "-30%");
+// its scale is declared in lib/fieldScale, never guessed from magnitude.
 const formatPercent = (value: number | string | null | undefined): string => {
-  if (value === null || value === undefined) return "N/A";
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value);
-  const pct = n < 2 ? n * 100 : n;
-  return `${pct.toFixed(1).replace(/\.0$/, "")}%`;
+  const pct = toPercent("earnings.growth_rate", value);
+  return pct === null
+    ? NOT_PUBLISHED
+    : `${pct.toFixed(1).replace(/\.0$/, "")}%`;
 };
 
 const SAT_MIN = 200;
@@ -81,12 +91,17 @@ export default function AdmissionsOverview({
   growthRate,
 }: AdmissionsOverviewProps) {
   const admissionRateValue = parseFloat(admissionRate);
-  const parsedRate = isNaN(admissionRateValue) ? 0 : admissionRateValue;
+  const parsedRate = Number.isFinite(admissionRateValue) ? admissionRateValue : null;
   const acceptedApplicants = parseDisplayNumber(applicants);
+  // Estimated applicants need a real, non-zero admit rate and a real count.
   const estimatedTotal =
-    parsedRate > 0 ? acceptedApplicants / (parsedRate / 100) : 0;
+    parsedRate !== null && parsedRate !== 0 && acceptedApplicants !== null
+      ? acceptedApplicants / (parsedRate / 100)
+      : null;
 
-  const percentage = Math.min(Math.max(parsedRate, 0), 100);
+  // Ring fill (a UI geometry value): an unknown rate draws an empty ring.
+  const percentage =
+    parsedRate !== null ? Math.min(Math.max(parsedRate, 0), 100) : 0;
   const strokeWidth = 14;
   const radius = 70;
   const circumference = 2 * Math.PI * radius;
@@ -96,8 +111,9 @@ export default function AdmissionsOverview({
   const effectiveNetRoi = netRoi20Yr;
   const effectiveGrowthRate = growthRate;
 
+  // A real 0% rate is a value; only a missing rate gets the neutral label.
   const competitiveness =
-    parsedRate > 0
+    parsedRate !== null
       ? parsedRate < 10
         ? "Highly Competitive"
         : parsedRate < 30
@@ -162,10 +178,16 @@ export default function AdmissionsOverview({
   // ── Outcomes card count-up animation ──
   const outcomesRef = useRef<HTMLDivElement>(null);
   const [outcomesAnimated, setOutcomesAnimated] = useState(false);
-  const [animSalary10, setAnimSalary10] = useState("$0");
-  const [animSalary1, setAnimSalary1] = useState("$0");
-  const [animRoi, setAnimRoi] = useState("$0");
-  const [animGrowth, setAnimGrowth] = useState("0%");
+  // Before the count-up runs (or if the card never scrolls into view) the
+  // real figure is shown — never a placeholder "$0" / "0%".
+  const [animSalary10, setAnimSalary10] = useState(() =>
+    formatCurrency(salaryYear10),
+  );
+  const [animSalary1, setAnimSalary1] = useState(() =>
+    formatCurrency(salaryYear1),
+  );
+  const [animRoi, setAnimRoi] = useState(() => formatCurrency(netRoi20Yr, true));
+  const [animGrowth, setAnimGrowth] = useState(() => formatPercent(growthRate));
 
   useEffect(() => {
     const el = outcomesRef.current;
@@ -176,10 +198,11 @@ export default function AdmissionsOverview({
         if (entry.isIntersecting && !outcomesAnimated) {
           setOutcomesAnimated(true);
 
-          const sal10Target = Number(effectiveSalaryYear10) || 0;
-          const sal1Target = Number(effectiveSalaryYear1) || 0;
-          const roiTarget = Number(effectiveNetRoi) || 0;
-          const growthTarget = Number(effectiveGrowthRate) || 0;
+          // Animation targets: real values only (null → no count-up).
+          const sal10Target = firstReal(effectiveSalaryYear10);
+          const sal1Target = firstReal(effectiveSalaryYear1);
+          const roiTarget = firstReal(effectiveNetRoi);
+          const growthTarget = firstReal(effectiveGrowthRate);
 
           const duration = 1200;
           const steps = 60;
@@ -191,13 +214,13 @@ export default function AdmissionsOverview({
             const progress = Math.min(step / steps, 1);
             const eased = 1 - Math.pow(1 - progress, 3);
 
-            if (sal10Target > 0)
+            if (sal10Target !== null && sal10Target > 0)
               setAnimSalary10(formatCurrency(eased * sal10Target));
-            if (sal1Target > 0)
+            if (sal1Target !== null && sal1Target > 0)
               setAnimSalary1(formatCurrency(eased * sal1Target));
-            if (roiTarget > 0)
+            if (roiTarget !== null && roiTarget > 0)
               setAnimRoi(formatCurrency(eased * roiTarget, true));
-            if (growthTarget > 0)
+            if (growthTarget !== null && growthTarget > 0)
               setAnimGrowth(formatPercent(eased * growthTarget));
 
             if (step >= steps) {
@@ -278,11 +301,9 @@ export default function AdmissionsOverview({
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="text-3xl font-black font-lexend text-slate-900 pb-0.5 leading-none">
-                {hasAnimated
-                  ? animatedPercent >= percentage
-                    ? admissionRate
-                    : `${animatedPercent.toFixed(1)}%`
-                  : "0%"}
+                {hasAnimated && animatedPercent < percentage
+                  ? `${animatedPercent.toFixed(1)}%`
+                  : admissionRate}
               </span>
             </div>
           </div>
@@ -290,7 +311,7 @@ export default function AdmissionsOverview({
             <p className="text-sm font-semibold text-slate-500 font-lexend">
               Acceptance Rate
             </p>
-            {parsedRate > 0 && (
+            {parsedRate !== null && (
               <span className="rounded-full bg-[#2054FE]/10 px-3 py-1 text-sm font-bold font-lexend text-[#2054FE]">
                 {competitiveness}
               </span>
@@ -350,7 +371,7 @@ export default function AdmissionsOverview({
         </div>
       </div>
 
-      {parsedRate > 0 && acceptedApplicants > 0 && (
+      {estimatedTotal !== null && acceptedApplicants !== null && (
         <p className="text-sm font-semibold text-slate-700">
           Estimated {formatDisplayNumber(estimatedTotal)} applicants, with{" "}
           {formatDisplayNumber(acceptedApplicants)} accepted.
@@ -382,7 +403,7 @@ export default function AdmissionsOverview({
               className="text-3xl font-black leading-none font-lexend"
               style={{ color: "#0AC69D" }}
             >
-              {outcomesAnimated ? animSalary10 : "$0"}+
+              {animSalary10}+
             </p>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-lexend mt-3">
               Median Salary in 10
@@ -407,7 +428,7 @@ export default function AdmissionsOverview({
               className="text-3xl font-black leading-none font-lexend"
               style={{ color: "#45A0D0" }}
             >
-              {outcomesAnimated ? animSalary1 : "$0"}
+              {animSalary1}
             </p>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-poppins mt-3">
               Median Salary in 1
@@ -435,7 +456,7 @@ export default function AdmissionsOverview({
               className="text-3xl font-black leading-none font-poppins"
               style={{ color: "#AB61FF" }}
             >
-              {outcomesAnimated ? animRoi : "$0"}
+              {animRoi}
             </p>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-poppins mt-3">
               Lifetime Earnings Premium
@@ -458,7 +479,7 @@ export default function AdmissionsOverview({
               className="text-3xl font-black leading-none font-poppins"
               style={{ color: "#F75659" }}
             >
-              {outcomesAnimated ? animGrowth : "0%"}
+              {animGrowth}
             </p>
             <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-poppins mt-3">
               Growth Rate

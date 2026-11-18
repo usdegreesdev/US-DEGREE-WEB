@@ -1,5 +1,6 @@
 "use client";
 
+import { NOT_PUBLISHED } from "@/lib/notPublished";
 import { useState } from "react";
 import {
   Bar,
@@ -24,14 +25,24 @@ export default function RosterBySportGenderChart({
 }: RosterBySportGenderChartProps) {
   const [showTable, setShowTable] = useState(false);
 
-  const sorted = [...roster].sort(
-    (a, b) => b.men + b.women - (a.men + a.women),
-  );
+  // A row total exists only when both counts are reported; unknown totals
+  // sort last rather than being treated as 0.
+  const totalOf = (r: { men: number | null; women: number | null }) =>
+    r.men !== null && r.women !== null ? r.men + r.women : null;
+  const sorted = [...roster].sort((a, b) => {
+    const ta = totalOf(a);
+    const tb = totalOf(b);
+    if (ta === null || tb === null) return ta === null ? (tb === null ? 0 : 1) : -1;
+    return tb - ta;
+  });
 
   const chartHeight = Math.max(sorted.length * 36, 160);
 
   const ariaLabel = `Stacked bar chart of roster size by sport and gender. ${sorted
-    .map((r) => `${r.sport}: ${r.men} men, ${r.women} women`)
+    .map(
+      (r) =>
+        `${r.sport}: ${r.men ?? NOT_PUBLISHED} men, ${r.women ?? NOT_PUBLISHED} women`,
+    )
     .join("; ")}.`;
 
   return (
@@ -79,13 +90,13 @@ export default function RosterBySportGenderChart({
                 >
                   <td className="px-4 py-2.5 text-black">{row.sport}</td>
                   <td className="px-4 py-2.5 text-right text-slate-700">
-                    {row.men}
+                    {row.men ?? NOT_PUBLISHED}
                   </td>
                   <td className="px-4 py-2.5 text-right text-slate-700">
-                    {row.women}
+                    {row.women ?? NOT_PUBLISHED}
                   </td>
                   <td className="px-4 py-2.5 text-right font-bold text-black">
-                    {row.men + row.women}
+                    {totalOf(row) ?? NOT_PUBLISHED}
                   </td>
                 </tr>
               ))}

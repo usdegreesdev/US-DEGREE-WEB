@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Heart, Clock, BookOpen, MapPin } from "lucide-react";
+import { Heart, BookOpen, MapPin } from "lucide-react";
 import { Button } from "antd";
 import CollegeLogo from "../college/CollegeLogo";
 import CompareIconAnimation from "./CompareIconAnimation";
@@ -51,9 +51,7 @@ export default function ResultCardDesktop({
   degree,
   schoolType,
   admissionRate,
-  avgGpa,
   satAct,
-  duration,
   specializations,
   estCost,
   medianSalary,
@@ -125,14 +123,14 @@ export default function ResultCardDesktop({
             />
             <path
               className="text-blue-600 stroke-current"
-              strokeDasharray={`${displayScore}, 100`}
+              strokeDasharray={`${displayScore ?? 0}, 100`}
               d={RING_PATH}
               fill="none"
               strokeWidth="3"
             />
           </svg>
           <span className="absolute text-[10px] font-extrabold text-blue-900">
-            {displayScore}%
+            {displayScore !== null ? `${displayScore}%` : ""}
           </span>
         </div>
       </div>
@@ -143,15 +141,12 @@ export default function ResultCardDesktop({
 
         <div className="flex flex-wrap gap-5 mb-3">
           <InfoField label="Admission Rate" value={admissionRate} />
-          <InfoField label="Avg. GPA" value={avgGpa} />
+          {/* No "Avg. GPA" or program-length chip: there is no GPA or
+              duration data, so both were constants ("N/A", "4 Years"). */}
           <InfoField label="SAT/ACT" value={satAct} />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-600">
-          <span className="flex items-center gap-1 bg-gray-50 px-1.5 py-1 rounded-md border border-gray-100">
-            <Clock size={10} className="text-gray-400" />
-            {duration}
-          </span>
           {schoolType && (
             <span
               className={`flex items-center gap-1 px-1.5 py-1 rounded-md border font-bold ${

@@ -7,7 +7,8 @@ import DesktopRowLabel from "../DesktopRowLabel";
 
 interface TuitionOutOfStateRowProps {
   colleges: College[];
-  averageTuition: number;
+  /** null when no compared college has a value. */
+  averageTuition: number | null;
   lowestTuitionId: string;
 }
 
@@ -36,7 +37,6 @@ export default function TuitionOutOfStateRow({
           );
         }
 
-        const diff = tuition - averageTuition;
         const percentDiff = relativePercentDiff(tuition, averageTuition);
         const isCheapest = lowestTuitionId === college.id;
 
@@ -49,14 +49,14 @@ export default function TuitionOutOfStateRow({
                 ${tuition.toLocaleString()}
               </span>
 
-              {colleges.length > 1 && (
+              {colleges.length > 1 && percentDiff !== null && (
                 <div className="mt-1 md:mt-2 flex items-center gap-0.5 md:gap-1">
-                  {diff < 0 ? (
+                  {percentDiff < 0 ? (
                     <span className="text-[8px] md:text-[10px] font-bold text-green-600 bg-green-50 px-1.5 md:px-2 py-0.5 rounded-md flex items-center">
                       <TrendingDown className="w-2.5 h-2.5 md:w-3 md:h-3 mr-0.5" />
                       {Math.abs(percentDiff)}% lower
                     </span>
-                  ) : diff > 0 ? (
+                  ) : percentDiff > 0 ? (
                     <span className="text-[8px] md:text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 md:px-2 py-0.5 rounded-md flex items-center">
                       <TrendingUp className="w-2.5 h-2.5 md:w-3 md:h-3 mr-0.5" />
                       +{percentDiff}% avg

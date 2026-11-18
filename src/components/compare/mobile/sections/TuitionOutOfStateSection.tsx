@@ -9,7 +9,8 @@ import MobileMetricRow from "../MobileMetricRow";
 interface TuitionOutOfStateSectionProps {
   colleges: College[];
   onViewDetails: (id: string) => void;
-  averageTuition: number;
+  /** null when no compared college has a value. */
+  averageTuition: number | null;
   lowestTuitionId: string;
 }
 
@@ -32,7 +33,6 @@ export default function TuitionOutOfStateSection({
           );
         }
 
-        const diff = tuition - averageTuition;
         const percentDiff = relativePercentDiff(tuition, averageTuition);
         const isCheapest = lowestTuitionId === college.id;
 
@@ -44,14 +44,14 @@ export default function TuitionOutOfStateSection({
               >
                 ${tuition.toLocaleString()}
               </span>
-              {colleges.length > 1 && (
+              {colleges.length > 1 && percentDiff !== null && (
                 <div>
-                  {diff < 0 ? (
+                  {percentDiff < 0 ? (
                     <span className="text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                       <TrendingDown className="w-2.5 h-2.5" />
                       {Math.abs(percentDiff)}%
                     </span>
-                  ) : diff > 0 ? (
+                  ) : percentDiff > 0 ? (
                     <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                       <TrendingUp className="w-2.5 h-2.5" />+{percentDiff}%
                     </span>

@@ -68,7 +68,6 @@ export default function TabContent({ data }: { data: UniversityViewData }) {
         name={data.name}
         location={data.location}
         type={data.type}
-        rank={data.rank}
         admissionRate={data.admissionRate}
         tuitionFee={data.tuitionFee}
         logoColor={data.logoColor}
@@ -189,8 +188,10 @@ export default function TabContent({ data }: { data: UniversityViewData }) {
               growthRate={data.growthRate}
               retentionPct={data.retentionPct}
               debtIncomeRatio={data.debtIncomeRatio}
-              loanPrincipal={data.tuitionData?.financial_aid?.loan_principal}
-              avgSalary={data.avgSalary}
+              debtRatioDebt={data.debtRatioDebt}
+              debtRatioEarnings={data.debtRatioEarnings}
+              debtRatioBasisLabel={data.debtRatioBasisLabel}
+              debtRatioDefinition={data.debtRatioDefinition}
             />
           )}
 
@@ -218,8 +219,6 @@ export default function TabContent({ data }: { data: UniversityViewData }) {
         <div className="w-full lg:w-[320px] shrink-0 lg:sticky lg:top-[120px] self-start">
           <CourseSummarySideCard
             degree={data.degree}
-            format={data.format}
-            financialAid={data.financialAid}
             schoolUrl={data.schoolUrl}
             credentialLevel={data.credentialLevel}
             credentialTitle={data.credentialTitle}
@@ -235,7 +234,7 @@ export default function TabContent({ data }: { data: UniversityViewData }) {
           universityId={data.id}
           universityName={data.name}
           location={data.location}
-          schoolType={data.type}
+          schoolType={data.type ?? undefined}
           admissionRate={data.admissionRate}
           tuitionFee={data.tuitionFee}
           avgSalary={data.avgSalary}

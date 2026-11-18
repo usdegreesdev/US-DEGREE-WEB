@@ -5,6 +5,7 @@ import { CampusStudentsTabProps } from "@/types/university/CampusStudentsTab";
 import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
 import { deriveCampusDemographics } from "@/lib/university/campusDemographics";
+import { toPercent } from "@/lib/fieldScale";
 
 export default function CampusStudentsTab({
   campusData,
@@ -64,19 +65,14 @@ export default function CampusStudentsTab({
   const { menStudentsPct, womenStudentsPct, menFacultyPct, womenFacultyPct } =
     deriveCampusDemographics(campusData);
 
-  // Repayment 3-Year Progress Rates
-  const toPercentVal = (val: number | string | null | undefined) => {
-    if (val === null || val === undefined) return null;
-    const num = Number(val);
-    if (isNaN(num)) return null;
-    return num < 2 ? num * 100 : num;
-  };
+  // Repayment 3-Year Progress Rates (integer percents; scale from lib/fieldScale)
 
-  const allBorrowersPct = toPercentVal(
-    campusData?.repayment?.all_borrowers_3yr,
+  const graduatesPct = toPercent(
+    "repayment.graduates_3yr",
+    campusData?.repayment?.graduates_3yr,
   );
-  const graduatesPct = toPercentVal(campusData?.repayment?.graduates_3yr);
-  const nonCompletersPct = toPercentVal(
+  const nonCompletersPct = toPercent(
+    "repayment.non_completers_3yr",
     campusData?.repayment?.non_completers_3yr,
   );
 
@@ -292,28 +288,8 @@ export default function CampusStudentsTab({
           </h3>
 
           <div className="flex flex-col gap-5">
-            {/* All Borrowers */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-[11px] sm:text-xs font-bold text-slate-900">
-                <span>All Borrowers - 3yr Progress</span>
-                <span>
-                  {allBorrowersPct !== null
-                    ? `${Math.round(allBorrowersPct * animProgress)}%`
-                    : "N/A"}
-                </span>
-              </div>
-              <div className="h-3 bg-[#EAEFF5] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#10B981] rounded-full"
-                  style={{
-                    width:
-                      allBorrowersPct !== null
-                        ? `${allBorrowersPct * animProgress}%`
-                        : "0%",
-                  }}
-                />
-              </div>
-            </div>
+            {/* No "All Borrowers" row: repayment.all_borrowers_3yr is 100 for
+                every school (not real data; see the column comment). */}
 
             {/* Graduates */}
             <div className="space-y-2">

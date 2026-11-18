@@ -5,9 +5,20 @@ import { Info } from "lucide-react";
 import { OutcomesSectionProps } from "@/types/university/OutcomesSection";
 import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import EarningsMethodBadge from "@/components/common/EarningsMethodBadge";
+import SalaryTrajectoryChart from "@/components/common/SalaryTrajectoryChart";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
 import { EARNINGS_SKIPPED_METHODS } from "@/types/earningsMethod";
-import { formatPercentOrNotPublished } from "@/lib/university/outcomeFormat";
+import {
+  NOT_PUBLISHED,
+  formatPercentOrNotPublished,
+} from "@/lib/university/outcomeFormat";
+
+/** A finite number, or null. Never substitutes a value; a real 0 stays 0. */
+const toFiniteOrNull = (val: number | string | null | undefined) => {
+  if (val === null || val === undefined || val === "") return null;
+  const num = Number(val);
+  return Number.isFinite(num) ? num : null;
+};
 
 export default function OutcomesSection({
   salaryYear1,
@@ -22,8 +33,10 @@ export default function OutcomesSection({
   netRoi20Yr,
   retentionPct,
   debtIncomeRatio,
-  loanPrincipal,
-  avgSalary,
+  debtRatioDebt,
+  debtRatioEarnings,
+  debtRatioBasisLabel,
+  debtRatioDefinition,
 }: OutcomesSectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartGradientId = useId();
@@ -80,12 +93,6 @@ export default function OutcomesSection({
     return `$${Math.round(num).toLocaleString()}`;
   };
 
-  const parseNumber = (val: number | string | null | undefined): number => {
-    if (val === null || val === undefined) return 0;
-    const num = Number(val);
-    return isNaN(num) ? 0 : num;
-  };
-
   // 1. Median Salary values
   // AFTER
   const sanitizeSalary = (val: unknown) => {
@@ -110,89 +117,19 @@ export default function OutcomesSection({
   // 2. First-year retention (0–100 percent; null stays null, no fallback)
   const retention = retentionPct ?? null;
 
-  // 3. Debt to Income calculations
-  const rawRatio = parseNumber(debtIncomeRatio) || 0.4;
-  // Multiplier is 1 / ratio, e.g. 1 / 0.4 = 2.5
-  const multiplier = rawRatio > 0 ? (1 / rawRatio).toFixed(1) : "2.5";
+  // 3. Debt-to-income — the PDF report's figure: the school's typical debt ÷
+  // the school's median earnings (DEBT_RATIO_BASIS in usdegrees-api), shown
+  // as "X.XX : 1" (debt per $1 of earnings). The API computes it; a ratio
+  // that is null or not above 0 means "no ratio", as in the report.
+  const ratioValue = toFiniteOrNull(debtIncomeRatio);
+  const debtRatio = ratioValue !== null && ratioValue > 0 ? ratioValue : null;
+  // The ratio's own inputs (school-level), so the three figures agree.
+  const avgDebt = toFiniteOrNull(debtRatioDebt);
+  const earlyEarnings = toFiniteOrNull(debtRatioEarnings);
 
-  // Early-career salary (avgSalary from DB, or fallback to s1/1st year earnings, fallback to $45k if very low)
-  const earlyEarnings =
-    avgSalary !== undefined && avgSalary !== null && parseNumber(avgSalary) > 0
-      ? parseNumber(avgSalary)
-      : s1 != null && s1 > 20000
-        ? s1
-        : null;
-  // Average debt = loanPrincipal from aid table (or fallback to earlyEarnings * rawRatio)
-  const avgDebt =
-    loanPrincipal !== undefined &&
-    loanPrincipal !== null &&
-    parseNumber(loanPrincipal) > 0
-      ? parseNumber(loanPrincipal)
-      : earlyEarnings !== null
-        ? Math.round(earlyEarnings * rawRatio)
-        : null;
-
-  // 4. Projected Salary Trajectory SVG Calculations
+  // 4. Salary trajectory: only the published year-1/5/10 points (see
+  // SalaryTrajectoryChart). Nothing interpolated, nothing past year 10.
   const hasSalaryData = s1 !== null || s5 !== null || s10 !== null;
-
-  const s1Val =
-    s1 ?? (s5 ? Math.round(s5 / 1.3) : s10 ? Math.round(s10 / 1.6) : 40000);
-  const s5Val = s5 ?? Math.round(s1Val * 1.3);
-  const s10Val = s10 ?? Math.round(s5Val * 1.25);
-  const s15Val = Math.round(s10Val * 1.25);
-  const s20Val = Math.round(s10Val * 1.5);
-
-  const trajectoryPoints = [
-    { label: "ENTRY", val: s1Val },
-    { label: "YEAR 5", val: s5Val },
-    { label: "YEAR 10", val: s10Val },
-    { label: "YEAR 15", val: s15Val },
-    { label: "YEAR 20", val: s20Val },
-  ];
-
-  // SVG dimensions
-  const width = 600;
-  const height = 220;
-  const paddingLeft = 60;
-  const paddingRight = 40;
-  const paddingTop = 20;
-  const paddingBottom = 30;
-
-  const maxVal = s20Val * 1.1;
-  const minVal = s1Val * 0.8;
-  const diffVal = maxVal - minVal;
-  const safeDiff = diffVal === 0 ? 1 : diffVal;
-
-  const baselineY = height - paddingBottom;
-
-  // Map values to coordinates, scaled by animProgress
-  const coords = trajectoryPoints.map((pt, i) => {
-    const x =
-      paddingLeft +
-      (i * (width - paddingLeft - paddingRight)) /
-        (trajectoryPoints.length - 1);
-    const targetY =
-      height -
-      paddingBottom -
-      ((pt.val - minVal) * (height - paddingTop - paddingBottom)) / safeDiff;
-    const y = baselineY + (targetY - baselineY) * animProgress;
-    return { x, y };
-  });
-
-  // Build SVG path using cubic bezier for smooth curves
-  let pathD = `M ${coords[0].x} ${coords[0].y}`;
-  for (let i = 0; i < coords.length - 1; i++) {
-    const curr = coords[i];
-    const next = coords[i + 1];
-    const cpX1 = curr.x + (next.x - curr.x) / 3;
-    const cpY1 = curr.y;
-    const cpX2 = curr.x + (2 * (next.x - curr.x)) / 3;
-    const cpY2 = next.y;
-    pathD += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${next.x} ${next.y}`;
-  }
-
-  // Path for gradient fill underneath
-  const fillD = `${pathD} L ${coords[coords.length - 1].x} ${height - paddingBottom} L ${coords[0].x} ${height - paddingBottom} Z`;
 
   return (
     <div ref={containerRef} className="flex flex-col gap-10 py-6 max-w-4xl">
@@ -312,19 +249,22 @@ export default function OutcomesSection({
                 text={DATA_SOURCE_DISCLAIMERS.collegeScorecard}
               />
             </p>
-            <p className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-2 sm:mb-4">
+            <p
+              data-testid="retention-value"
+              className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-2 sm:mb-4"
+            >
               {retention === null
                 ? formatPercentOrNotPublished(null)
                 : formatPercentOrNotPublished(retention * animProgress)}
             </p>
           </div>
           <div className="w-full bg-gray-100 h-2 rounded-full mt-1 sm:mt-2">
-            <div
-              className="bg-[#2563EB] h-2 rounded-full"
-              style={{
-                width: `${(retention ?? 0) * animProgress}%`,
-              }}
-            />
+            {retention !== null && (
+              <div
+                className="bg-[#2563EB] h-2 rounded-full"
+                style={{ width: `${retention * animProgress}%` }}
+              />
+            )}
           </div>
         </div>
 
@@ -355,122 +295,20 @@ export default function OutcomesSection({
         <div className="bg-white border border-gray-150 rounded-3xl p-6.5 shadow-sm">
           {hasSalaryData ? (
             <>
-              <div className="w-full overflow-x-auto">
-                <svg
-                  viewBox={`0 0 ${width} ${height}`}
-                  className="w-full min-w-[500px] h-auto overflow-visible"
-                >
-                  <defs>
-                    <linearGradient
-                      id={chartGradientId}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.2" />
-                      <stop
-                        offset="100%"
-                        stopColor="#3B82F6"
-                        stopOpacity="0.0"
-                      />
-                    </linearGradient>
-                    <clipPath id={chartClipId}>
-                      <rect
-                        x="0"
-                        y="0"
-                        width={width * animProgress}
-                        height={height}
-                      />
-                    </clipPath>
-                  </defs>
-
-                  {/* Y Axis Grid Lines & Labels */}
-                  {[minVal, (minVal + maxVal) / 2, maxVal].map((yVal, i) => {
-                    const y =
-                      height -
-                      paddingBottom -
-                      ((yVal - minVal) *
-                        (height - paddingTop - paddingBottom)) /
-                        safeDiff;
-                    return (
-                      <g key={i}>
-                        <line
-                          x1={paddingLeft}
-                          y1={y}
-                          x2={width - paddingRight}
-                          y2={y}
-                          stroke="#F3F4F6"
-                          strokeWidth="1.5"
-                        />
-                        <text
-                          x={paddingLeft - 10}
-                          y={y + 4}
-                          textAnchor="end"
-                          className="text-[10px] font-black text-gray-400"
-                        >
-                          {formatCurrency(yVal)}
-                        </text>
-                      </g>
-                    );
-                  })}
-
-                  {/* Curve Area Fill */}
-                  <path
-                    d={fillD}
-                    fill={`url(#${chartGradientId})`}
-                    clipPath={`url(#${chartClipId})`}
-                  />
-
-                  {/* Curve Line */}
-                  <path
-                    d={pathD}
-                    fill="none"
-                    stroke="#3B82F6"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    clipPath={`url(#${chartClipId})`}
-                  />
-
-                  {/* Data points */}
-                  {coords.map((coord, i) => {
-                    const dotVisible = width * animProgress >= coord.x;
-                    return (
-                      <circle
-                        key={i}
-                        cx={coord.x}
-                        cy={coord.y}
-                        r={dotVisible ? 5 : 0}
-                        fill="#FFFFFF"
-                        stroke="#3B82F6"
-                        strokeWidth="3.5"
-                        style={{
-                          transition:
-                            "r 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                        }}
-                      />
-                    );
-                  })}
-
-                  {/* X Axis Labels */}
-                  {coords.map((coord, i) => (
-                    <text
-                      key={i}
-                      x={coord.x}
-                      y={height - paddingBottom + 18}
-                      textAnchor="middle"
-                      className="text-[9px] font-black fill-gray-400 uppercase tracking-wider"
-                    >
-                      {trajectoryPoints[i].label}
-                    </text>
-                  ))}
-                </svg>
-              </div>
+              <SalaryTrajectoryChart
+                year1={s1}
+                year5={s5}
+                year10={s10}
+                animProgress={animProgress}
+                gradientId={chartGradientId}
+                clipId={chartClipId}
+                formatCurrency={formatCurrency}
+              />
 
               <div className="flex justify-center items-center gap-2 mt-4">
                 <span className="w-2.5 h-2.5 bg-[#3B82F6] rounded-full" />
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">
-                  Projected Growth
+                  Reported earnings
                 </span>
               </div>
             </>
@@ -507,56 +345,77 @@ export default function OutcomesSection({
           Debt-to-Income Ratio
         </h2>
         <div className="bg-white border border-gray-150 rounded-3xl p-8 shadow-sm flex flex-col gap-6">
+          {/* No value judgement on the ratio ("good value" etc.): there is no
+              agreed threshold, and the PDF report states the ratio without
+              one. Show the figure; the reader judges. */}
           <div className="flex justify-between items-center">
-            <span className="px-3 py-1.5 bg-[#E0F2FE] text-[#0369A1] rounded-full text-[9px] font-extrabold uppercase tracking-wider">
-              {Number(multiplier) >= 2.0 ? "HIGH ROI POTENTIAL" : "GOOD VALUE"}
-            </span>
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-              1:{(Number(multiplier) * animProgress).toFixed(1)} Debt-to-income
+            <span
+              data-testid="debt-ratio-value"
+              className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-auto"
+            >
+              {debtRatio !== null
+                ? `${debtRatio.toFixed(2)} : 1 debt per $1 of earnings`
+                : NOT_PUBLISHED}
             </span>
           </div>
 
-          {/* Dynamic ratio bar */}
-          <div className="w-full h-8 rounded-xl overflow-hidden flex font-bold text-[10px] text-white">
+          {/* Ratio bar: only drawn from a real ratio */}
+          {debtRatio !== null && (
             <div
-              className="bg-[#EF4444] flex items-center justify-center"
-              style={{ width: `${rawRatio * 100 * animProgress}%` }}
+              data-testid="debt-ratio-bar"
+              className="w-full h-8 rounded-xl overflow-hidden flex font-bold text-[10px] text-white"
             >
-              Debt
+              <div
+                className="bg-[#EF4444] flex items-center justify-center"
+                style={{ width: `${debtRatio * 100 * animProgress}%` }}
+              >
+                Debt
+              </div>
+              <div className="bg-[#2563EB] flex items-center justify-center flex-1">
+                Income
+              </div>
             </div>
-            <div className="bg-[#2563EB] flex items-center justify-center flex-1">
-              Income
-            </div>
-          </div>
+          )}
 
           <div className="flex justify-between items-center px-1">
             <div className="flex flex-col">
-              <span className="text-sm font-black text-gray-900">
+              <span
+                data-testid="avg-debt-value"
+                className="text-sm font-black text-gray-900"
+              >
                 {avgDebt !== null
                   ? formatCurrency(avgDebt * animProgress)
-                  : "N/A"}
+                  : NOT_PUBLISHED}
               </span>
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Average debt
+                Typical debt (school)
               </span>
             </div>
             <div className="flex flex-col text-right">
-              <span className="text-sm font-black text-gray-900">
+              <span
+                data-testid="early-earnings-value"
+                className="text-sm font-black text-gray-900"
+              >
                 {earlyEarnings !== null
                   ? formatCurrency(earlyEarnings * animProgress)
-                  : "N/A"}
+                  : NOT_PUBLISHED}
               </span>
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                Average early-career earnings
+                {debtRatioBasisLabel
+                  ? `School median earnings, ${debtRatioBasisLabel}`
+                  : "School median earnings"}
               </span>
             </div>
           </div>
 
-          <p className="text-xs text-gray-400 text-center font-medium border-t border-gray-50 pt-4">
-            Students typically earn ~
-            {(Number(multiplier) * animProgress).toFixed(1)}x their debt after
-            graduation
-          </p>
+          {debtRatioDefinition && (
+            <p
+              data-testid="debt-ratio-definition"
+              className="text-xs text-gray-500 font-medium border-t border-gray-50 pt-4 leading-relaxed"
+            >
+              {debtRatioDefinition}
+            </p>
+          )}
         </div>
       </div>
 

@@ -7,7 +7,8 @@ import DesktopRowLabel from "../DesktopRowLabel";
 
 interface GraduationRateRowProps {
   colleges: College[];
-  averageGraduationRate: number;
+  /** null when no compared college has a value. */
+  averageGraduationRate: number | null;
   highestGraduationId: string;
 }
 
@@ -45,7 +46,7 @@ export default function GraduationRateRow({
                 {(rate * 100).toFixed(0)}%
               </span>
 
-              {colleges.length > 1 && (
+              {colleges.length > 1 && diffPoints !== null && (
                 <div className="mt-1 md:mt-2 flex items-center gap-0.5 md:gap-1">
                   {isHighest ? (
                     <span className="text-[8px] md:text-[10px] font-black uppercase tracking-wider text-green-600 bg-green-50 px-1.5 md:px-2 py-0.5 rounded-md">
