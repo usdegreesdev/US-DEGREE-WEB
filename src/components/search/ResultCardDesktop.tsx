@@ -55,7 +55,6 @@ export default function ResultCardDesktop({
   satAct,
   duration,
   specializations,
-  gradRate,
   estCost,
   medianSalary,
   roi,
@@ -173,11 +172,6 @@ export default function ResultCardDesktop({
 
       {/* Stat Tiles */}
       <div className="flex flex-wrap gap-3 py-4 border-y border-gray-100 mb-4">
-        <StatTile
-          label="Employment Rate"
-          value={gradRate > 0 ? `${gradRate}%` : "N/A"}
-          valueClass="text-gray-900"
-        />
         <StatTile
           label="Median Salary"
           value={medianSalary ?? "N/A"}

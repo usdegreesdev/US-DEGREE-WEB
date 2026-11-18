@@ -96,7 +96,6 @@ export interface ApiOutcomes {
   };
   earnings_resolved?: ApiEarningsResolved;
   roi?: { roi_20yr?: ApiNum };
-  completion?: { emp_factor?: ApiNum };
   debt_income_ratio?: { debt_income_ratio?: ApiNum };
 }
 

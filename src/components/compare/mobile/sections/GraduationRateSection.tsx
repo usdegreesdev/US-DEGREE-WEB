@@ -20,7 +20,7 @@ export default function GraduationRateSection({
   highestGraduationId,
 }: GraduationRateSectionProps) {
   return (
-    <MobileSectionCard title="Graduation Rate" subtitle="Percent completing">
+    <MobileSectionCard title="Graduation Rate" subtitle="within 150% of normal time">
       {colleges.map((college) => {
         const rate = college.graduationRate;
 

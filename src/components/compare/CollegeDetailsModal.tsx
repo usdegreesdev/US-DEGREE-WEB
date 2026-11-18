@@ -200,7 +200,7 @@ export default function CollegeDetailsModal({
         const rawCompletion = overviewData?.completion?.completion_rate;
         const completionRate =
           rawCompletion !== null && rawCompletion !== undefined
-            ? `${Number(rawCompletion).toFixed(0)}%`
+            ? `${Number(rawCompletion).toFixed(1)}%`
             : "N/A";
 
         // Tuition & Costs tab: "Tuition In State" / "Tuition Out State"

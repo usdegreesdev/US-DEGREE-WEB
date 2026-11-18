@@ -18,7 +18,7 @@ export default function GraduationRateRow({
 }: GraduationRateRowProps) {
   return (
     <tr className="hover:bg-slate-50/30 transition-colors">
-      <DesktopRowLabel title="Graduation Rate" subtitle="Percent completing" />
+      <DesktopRowLabel title="Graduation Rate" subtitle="within 150% of normal time" />
       {colleges.map((college) => {
         const rate = college.graduationRate;
 

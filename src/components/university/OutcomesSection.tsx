@@ -7,6 +7,7 @@ import DisclaimerTooltip from "@/components/common/DisclaimerTooltip";
 import EarningsMethodBadge from "@/components/common/EarningsMethodBadge";
 import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
 import { EARNINGS_SKIPPED_METHODS } from "@/types/earningsMethod";
+import { formatPercentOrNotPublished } from "@/lib/university/outcomeFormat";
 
 export default function OutcomesSection({
   salaryYear1,
@@ -19,7 +20,7 @@ export default function OutcomesSection({
   salaryYear5Cohort,
   salaryYear10Cohort,
   netRoi20Yr,
-  empFactor,
+  retentionPct,
   debtIncomeRatio,
   loanPrincipal,
   avgSalary,
@@ -79,14 +80,6 @@ export default function OutcomesSection({
     return `$${Math.round(num).toLocaleString()}`;
   };
 
-  const formatPercent = (val: number | string | null | undefined): string => {
-    if (val === null || val === undefined) return "N/A";
-    const num = Number(val);
-    if (isNaN(num)) return String(val);
-    const pct = num < 2 ? num * 100 : num;
-    return `${Math.round(pct)}%`;
-  };
-
   const parseNumber = (val: number | string | null | undefined): number => {
     if (val === null || val === undefined) return 0;
     const num = Number(val);
@@ -114,8 +107,8 @@ export default function OutcomesSection({
   const s5 = sanitizeSalary(salaryYear5);
   const s10 = sanitizeSalary(salaryYear10);
 
-  // 2. Employment Rate
-  const parsedEmp = parseNumber(empFactor) || 0.94;
+  // 2. First-year retention (0–100 percent; null stays null, no fallback)
+  const retention = retentionPct ?? null;
 
   // 3. Debt to Income calculations
   const rawRatio = parseNumber(debtIncomeRatio) || 0.4;
@@ -308,26 +301,28 @@ export default function OutcomesSection({
         </div>
       </div>
 
-      {/* 2. Employment Rate & ROI Side-by-Side */}
+      {/* 2. First-year retention & ROI Side-by-Side */}
       <div className="grid grid-cols-2 gap-4 sm:gap-6 w-full">
-        {/* Employment Rate */}
+        {/* First-year retention */}
         <div className="bg-[#F0FDF4] border border-[#DCFCE7]/60 rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-sm flex flex-col justify-between min-h-[130px] sm:min-h-[160px] relative overflow-hidden">
           <div>
             <p className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black text-[#16A34A] uppercase tracking-[0.1em] mb-1 sm:mb-2">
-              EMPLOYMENT RATE
+              FIRST-YEAR RETENTION
               <DisclaimerTooltip
                 text={DATA_SOURCE_DISCLAIMERS.collegeScorecard}
               />
             </p>
             <p className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-2 sm:mb-4">
-              {formatPercent(parsedEmp)}
+              {retention === null
+                ? formatPercentOrNotPublished(null)
+                : formatPercentOrNotPublished(retention * animProgress)}
             </p>
           </div>
           <div className="w-full bg-gray-100 h-2 rounded-full mt-1 sm:mt-2">
             <div
               className="bg-[#2563EB] h-2 rounded-full"
               style={{
-                width: `${(parsedEmp < 2 ? parsedEmp * 100 : parsedEmp) * animProgress}%`,
+                width: `${(retention ?? 0) * animProgress}%`,
               }}
             />
           </div>

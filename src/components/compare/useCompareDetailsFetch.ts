@@ -252,9 +252,7 @@ async function fetchPublicCompareDetail(
     const rawGraduation = overviewData?.completion?.completion_rate;
     const graduationRate =
       rawGraduation !== null && rawGraduation !== undefined
-        ? Number(rawGraduation) < 2
-          ? Number(rawGraduation) * 100
-          : Number(rawGraduation)
+        ? Number(rawGraduation)
         : null;
 
     const resolvedEarnings =

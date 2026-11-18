@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { formatPercentOrNotPublished } from "@/lib/university/outcomeFormat";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -266,7 +267,7 @@ export default function CollegeMatchesSection({
                         </div>
                       )}
 
-                      {/* Stats: tuition, acceptance, graduation, employment, 1-yr salary */}
+                      {/* Stats: tuition, acceptance, graduation, retention, 1-yr salary */}
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         {(() => {
                           // Prefer listed tuition; when a program has none, fall
@@ -309,10 +310,10 @@ export default function CollegeMatchesSection({
                         </div>
                         <div className="bg-amber-50 rounded-lg px-2.5 py-2">
                           <span className="text-[10px] text-amber-600/80 font-semibold block">
-                            Employment Rate
+                            First-year retention
                           </span>
                           <span className="font-bold text-amber-700">
-                            {fmtPercent(match.employmentRate)}
+                            {formatPercentOrNotPublished(match.retentionRate, 1)}
                           </span>
                         </div>
                         <div className="bg-teal-50 rounded-lg px-2.5 py-2 col-span-2">

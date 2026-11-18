@@ -187,7 +187,7 @@ export default function TabContent({ data }: { data: UniversityViewData }) {
               salaryYear10Cohort={data.salaryYear10Cohort}
               netRoi20Yr={data.netRoi20Yr}
               growthRate={data.growthRate}
-              empFactor={data.empFactor}
+              retentionPct={data.retentionPct}
               debtIncomeRatio={data.debtIncomeRatio}
               loanPrincipal={data.tuitionData?.financial_aid?.loan_principal}
               avgSalary={data.avgSalary}

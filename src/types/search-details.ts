@@ -11,7 +11,6 @@ export interface SearchResult {
   state: string | null;
   unitid: number | string;
   admission_rate: number | string | null;
-  emp_factor: number | string | null;
   earnings_year_5: number | string | null;
   roi_20yr: number | string | null;
   tuition_in_state?: number | string | null;

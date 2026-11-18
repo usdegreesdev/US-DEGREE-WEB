@@ -14,7 +14,8 @@ export interface OutcomesSectionProps {
   salaryYear10Cohort?: string | null;
   netRoi20Yr?: number | string | null;
   growthRate?: number | string | null;
-  empFactor?: number | string | null;
+  // First-year retention, already a 0–100 percent (null = not published).
+  retentionPct?: number | null;
   debtIncomeRatio?: number | string | null;
   loanPrincipal?: number | string | null;
   avgSalary?: number | string | null;

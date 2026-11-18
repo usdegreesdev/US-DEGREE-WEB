@@ -21,6 +21,7 @@ import { SearchResult } from "../../types/search-details";
 import { extractSearchRows } from "../../lib/search/searchParams";
 import { EarningsFillMethod } from "@/types/earningsMethod";
 import { getProgramSearchTerm } from "../../data/profileOptions";
+import { retentionToPercent } from "@/lib/university/outcomeFormat";
 
 /** A single matched college, ready to render. Rates are percentages (0–100). */
 export interface CollegeMatch {
@@ -38,7 +39,7 @@ export interface CollegeMatch {
   costOfAttendance: number | null; // sticker_price_by_api — avg annual cost, $/yr
   acceptanceRate: number | null; // %
   graduationRate: number | null; // %
-  employmentRate: number | null; // %
+  retentionRate: number | null; // first-year retention, 0–100 %
   medianSalary1yr: number | null; // 1-year median salary, $
   medianSalary1yrMethod: EarningsFillMethod | null;
   schoolUrl: string | null; // official website (for the Saved Colleges "Visit website")
@@ -109,9 +110,8 @@ function sanitizeSalary(
   return Number.isNaN(num) ? null : num;
 }
 
-// Normalise a rate to a 0–100 percentage. `admission_rate`/`emp_factor` arrive
-// as 0–1 fractions, while `completion_rate` is already 0–100, so anything <= 1
-// is scaled up.
+// Normalise `admission_rate` (a 0–1 fraction) to a 0–100 percentage. Do NOT use
+// for `completion_rate` (always a 0–100 percent).
 function toPercent(val: number | string | null | undefined): number | null {
   const num = toNum(val);
   if (num === null) return null;
@@ -253,7 +253,7 @@ export function useCollegeMatches(profile: StudentProfile): {
           tuition: toNum(r.tuition_in_state),
           costOfAttendance: null, // filled in by the enrichment pass below
           acceptanceRate: toPercent(r.admission_rate),
-          employmentRate: toPercent(r.emp_factor),
+          retentionRate: null, // filled in by the enrichment pass below
           graduationRate: null, // filled in by the enrichment pass below
           medianSalary1yr: null,
           medianSalary1yrMethod: null,
@@ -275,13 +275,16 @@ export function useCollegeMatches(profile: StudentProfile): {
               ]);
 
               let graduationRate: number | null = null;
+              let retentionRate: number | null = null;
               let medianSalary1yr: number | null = null;
               let medianSalary1yrMethod: EarningsFillMethod | null = null;
               let costOfAttendance: number | null = null;
 
               if (ovRes.ok) {
                 const ov = await ovRes.json();
-                graduationRate = toPercent(ov?.completion?.completion_rate);
+                graduationRate = toNum(ov?.completion?.completion_rate);
+                // retention_rate is a 0–1 fraction → percent, null stays null.
+                retentionRate = retentionToPercent(ov?.students?.retention_rate);
                 medianSalary1yr = sanitizeSalary(ov?.earnings?.year_1);
                 medianSalary1yrMethod = ov?.earnings?.year_1_method ?? null;
               }
@@ -312,6 +315,7 @@ export function useCollegeMatches(profile: StudentProfile): {
               return {
                 ...m,
                 graduationRate,
+                retentionRate,
                 medianSalary1yr,
                 medianSalary1yrMethod,
                 costOfAttendance,

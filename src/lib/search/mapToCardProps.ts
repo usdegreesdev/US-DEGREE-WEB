@@ -25,9 +25,6 @@ export const mapToCardProps = (result: SearchResult) => ({
   duration: "4 Years", // Default fallback if not provided
   specializations: result.credential_title || "N/A",
   matchScore: 0, // Placeholder
-  gradRate: hasValue(result.emp_factor)
-    ? parseFloat(Number(result.emp_factor).toFixed(1))
-    : 0,
   avgSalary: hasValue(result.earnings_year_5)
     ? `$${Math.round(Number(result.earnings_year_5)).toLocaleString()}`
     : undefined,

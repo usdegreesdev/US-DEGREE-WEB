@@ -19,7 +19,6 @@ export interface ResultCardProps {
   duration: string;
   specializations: string;
   matchScore: number;
-  gradRate: number;
   avgSalary?: string;
   estCost?: string;
   medianSalary?: string;
@@ -40,7 +39,6 @@ export interface ResultCardViewProps {
   duration: string;
   specializations: string;
   matchScore: number;
-  gradRate: number;
   estCost?: string;
   medianSalary?: string;
   roi?: string;

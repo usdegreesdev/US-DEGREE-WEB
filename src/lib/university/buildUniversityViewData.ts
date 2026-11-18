@@ -1,3 +1,4 @@
+import { retentionToPercent } from "@/lib/university/outcomeFormat";
 import { getTestingRequirementsForCategory } from "@/data/testingRequirements";
 import { TestingRequirementsDisclosure } from "@/types/university/AdmissionsTabContent";
 import { UniversitySearchParams } from "@/types/university/apiResponses";
@@ -118,7 +119,7 @@ export async function buildUniversityViewData(
   const rawCompletion = apiData?.completion?.completion_rate;
   const completionRate =
     rawCompletion !== null && rawCompletion !== undefined
-      ? `${Number(rawCompletion).toFixed(0)}%`
+      ? `${Number(rawCompletion).toFixed(1)}%`
       : "N/A";
 
   // SAT & Student metrics from API if present
@@ -243,11 +244,8 @@ export async function buildUniversityViewData(
           100
         : null;
 
-  const empFactor =
-    outcomesData?.completion?.emp_factor !== null &&
-    outcomesData?.completion?.emp_factor !== undefined
-      ? Number(outcomesData.completion.emp_factor)
-      : null;
+  // First-year retention as a 0–100 percent (the column is a 0–1 fraction).
+  const retentionPct = retentionToPercent(rawRetention);
 
   const debtIncomeRatio =
     outcomesData?.debt_income_ratio?.debt_income_ratio !== null &&
@@ -317,7 +315,7 @@ export async function buildUniversityViewData(
     salaryYear10Cohort,
     netRoi20Yr,
     growthRate,
-    empFactor,
+    retentionPct,
     debtIncomeRatio,
     avgSalary,
 

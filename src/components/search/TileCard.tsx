@@ -21,7 +21,6 @@ export default function TileCard({
   specializations,
   schoolType,
   admissionRate,
-  gradRate,
   avgSalary,
   estCost,
   roi,
@@ -139,20 +138,12 @@ export default function TileCard({
             {roi ?? "N/A"}
           </p>
         </div>
-        <div>
+        <div className="col-span-2">
           <p className="text-[8px] sm:text-[9px] text-gray-400 uppercase font-semibold">
             Avg. Salary
           </p>
           <p className="text-[10px] sm:text-xs font-bold text-green-600">
             {avgSalary ?? "N/A"}
-          </p>
-        </div>
-        <div>
-          <p className="text-[8px] sm:text-[9px] text-gray-400 uppercase font-semibold">
-            Employment
-          </p>
-          <p className="text-[10px] sm:text-xs font-bold text-gray-900">
-            {gradRate > 0 ? `${gradRate}%` : "N/A"}
           </p>
         </div>
       </div>

@@ -28,7 +28,10 @@ const formatAnimValue = (
     // "5:1" style — animate the left number
     return `${Math.round(current)}:1`;
   }
-  if (label === "RETENTION RATE" || label === "COMPLETION") {
+  if (label === "GRADUATION RATE") {
+    return `${current.toFixed(1)}%`;
+  }
+  if (label === "RETENTION RATE") {
     return `${Math.round(current)}%`;
   }
   if (label === "PROGRAMS") {
@@ -88,7 +91,8 @@ export default function StatsGrid({
       valueColor: "#881337",
     },
     {
-      label: "COMPLETION",
+      label: "GRADUATION RATE",
+      subtitle: "within 150% of normal time",
       value: completionRate ?? "N/A",
       accentColor: "#7C3AED",
       accentBg: "#F5F3FF",
@@ -191,6 +195,14 @@ export default function StatsGrid({
               "0"
             )}
           </p>
+          {"subtitle" in stat && (
+            <p
+              className="m-0 mt-1 text-[11px] leading-tight"
+              style={{ color: stat.accentColor }}
+            >
+              {stat.subtitle}
+            </p>
+          )}
         </div>
       ))}
     </div>
