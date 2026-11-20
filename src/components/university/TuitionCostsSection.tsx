@@ -323,6 +323,12 @@ export default function TuitionCostsSection({
       ? Math.max(0, activeStickerPrice - currentNetPrice)
       : null;
 
+  // Which of the calculator's two derived tiles have no value to show.
+  const unavailableCalculatorValues = [
+    activeStickerPrice == null ? "sticker price" : null,
+    currentFinAid == null ? "estimated financial aid" : null,
+  ].filter((v): v is string => v !== null);
+
   const costCards = [
     { label: "Tuition In State", value: activeTuition, bg: "#F5F3FF" },
     { label: "Tuition Out State", value: tuitionOutState, bg: "#C6D4FF" },
@@ -593,6 +599,23 @@ export default function TuitionCostsSection({
             );
           })}
         </div>
+
+        {/* Shown only when the calculator's sticker price or estimated aid
+            could not be computed — those tiles then read "Not published". */}
+        {unavailableCalculatorValues.length > 0 && (
+          <p
+            data-testid="calculator-unavailable-note"
+            className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-900 font-poppins leading-relaxed"
+          >
+            <strong>Note:</strong> The{" "}
+            {unavailableCalculatorValues.join(" and ")} value
+            {unavailableCalculatorValues.length > 1 ? "s are" : " is"} not
+            available or published at the source, hence{" "}
+            {unavailableCalculatorValues.length > 1 ? "they show" : "it shows"}{" "}
+            as &quot;{NOT_PUBLISHED}&quot;. Please always check with the
+            college&apos;s admissions office or official website.
+          </p>
+        )}
       </div>
     </div>
   );
