@@ -10,6 +10,30 @@ import { useAuth } from "@/context/AuthContext";
 import { emptyProfile, mergeProfile } from "@/components/userprofile/ProfileDashboard";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
+import { fetchStates, type StateOption } from "@/lib/referenceData";
+import {
+  checkAlignment,
+  normalizeField,
+  profilePrefsFromApi,
+  type DegreeCode,
+} from "@/lib/academicAlignment";
+import AcademicAlignmentModal, {
+  type AlignmentLabels,
+} from "./AcademicAlignmentModal";
+
+// Display names for the normalized degree buckets (labels only).
+const DEGREE_LABEL: Record<DegreeCode, string> = {
+  certificate: "Certificate",
+  associate: "Associate's",
+  bachelor: "Bachelor's",
+  master: "Master's",
+  doctorate: "Doctorate",
+};
+
+interface AlignmentPrompt {
+  saved: AlignmentLabels;
+  current: AlignmentLabels;
+}
 
 // Below this, we ask the user to finish their profile before generating a
 // report so the AI has enough signal (academics + preferences) to personalize it.
@@ -46,6 +70,8 @@ export default function CompareHeader({
   const [generationStep, setGenerationStep] = useState<number>(-1);
   const [progress, setProgress] = useState(0);
   const [isGenerated, setIsGenerated] = useState(false);
+  const [alignmentPrompt, setAlignmentPrompt] =
+    useState<AlignmentPrompt | null>(null);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
@@ -110,7 +136,84 @@ export default function CompareHeader({
     setIsConfirmOpen(true);
   };
 
+  // Academic preference alignment: compares the saved profile preferences with
+  // the actual program + state of every selected college (backend-normalized
+  // fields only). Returns the modal data on a difference, or null when
+  // aligned / no saved prefs / data unavailable / any failure (fail open).
+  const buildAlignmentPrompt = async (): Promise<AlignmentPrompt | null> => {
+    try {
+      const data = await fetchProfile<Record<string, unknown>>();
+      const result = checkAlignment(
+        profilePrefsFromApi(data),
+        comparedColleges.map((c) => ({
+          degreeLevel: c.degreeLevel,
+          cipCode: c.programCipCode,
+          stateCode: c.stateCode,
+        })),
+      );
+      if (result.aligned) return null;
+
+      // Display names only — never used for matching.
+      let states: StateOption[] = [];
+      try {
+        states = await fetchStates();
+      } catch {
+        // Fall back to the 2-letter code.
+      }
+      const stateName = (code: string) =>
+        states.find((s) => s.code.toUpperCase() === code)?.name ?? code;
+      const fieldName = (family: string) =>
+        comparedColleges.find(
+          (c) => normalizeField(c.programCipCode) === family && c.programName,
+        )?.programName ?? family;
+      const profile = mergeProfile(emptyProfile(user), data);
+
+      return {
+        saved: {
+          degrees: result.saved.degrees.map((d) => DEGREE_LABEL[d]),
+          fields: profile.preferredPrograms,
+          states: result.saved.states.map(stateName),
+        },
+        current: {
+          degrees: result.current.degrees.map((d) => DEGREE_LABEL[d]),
+          fields: result.current.fields.map(fieldName),
+          states: result.current.states.map(stateName),
+        },
+      };
+    } catch (err) {
+      console.error("Academic alignment check failed:", err);
+      return null;
+    }
+  };
+
+  // Entry point for the confirm modal's "Generate": check alignment first,
+  // then generate straight away or ask the user to confirm.
   const handleGenerateReport = async () => {
+    if (!comparedIds || comparedIds.length === 0) {
+      message.warning(
+        "Please select at least two college to compare before generating a report.",
+      );
+      return;
+    }
+    setIsCheckingProfile(true);
+    let prompt: AlignmentPrompt | null = null;
+    try {
+      prompt = await buildAlignmentPrompt();
+    } finally {
+      if (isMounted.current) setIsCheckingProfile(false);
+    }
+    if (!isMounted.current) return;
+    if (prompt) {
+      // Same state update: the confirm modal closes as the alignment modal
+      // opens, so the two are never shown together.
+      setIsConfirmOpen(false);
+      setAlignmentPrompt(prompt);
+      return;
+    }
+    await startReportGeneration();
+  };
+
+  const startReportGeneration = async () => {
     if (!comparedIds || comparedIds.length === 0) {
       message.warning(
         "Please select at least two college to compare before generating a report.",
@@ -455,12 +558,24 @@ export default function CompareHeader({
             type="primary"
             icon={<FileText className="w-4 h-4" />}
             onClick={handleGenerateReport}
+            loading={isCheckingProfile}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 border-none font-bold rounded-xl h-10 px-5 shadow-md flex items-center gap-2"
           >
             Generate
           </Button>
         </div>
       </Modal>
+
+      <AcademicAlignmentModal
+        open={alignmentPrompt !== null}
+        saved={alignmentPrompt?.saved ?? { degrees: [], fields: [], states: [] }}
+        current={alignmentPrompt?.current ?? { degrees: [], fields: [], states: [] }}
+        onGoBack={() => setAlignmentPrompt(null)}
+        onContinue={() => {
+          setAlignmentPrompt(null);
+          void startReportGeneration();
+        }}
+      />
 
       {/* Incomplete-profile gate: shown instead of the confirm modal when the
           profile is below the completion threshold. */}

@@ -499,6 +499,11 @@ export interface SelectedCompareCollege {
   schoolUrl: string | null;
   schoolType: string | null;
   accreditor: string | null;
+  // Academic-alignment fields (backend-normalized, nullable). cipCode and
+  // degreeLevel describe the SELECTED program only.
+  cipCode?: string | null; // dotted, e.g. "11.07"
+  degreeLevel?: string | null; // certificate|associate|bachelor|master|doctorate
+  stateCode?: string | null; // 2-letter
   academics: {
     satRangeLow: number | null;
     satRangeHigh: number | null;

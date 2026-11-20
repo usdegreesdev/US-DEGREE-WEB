@@ -29,6 +29,12 @@ export interface College {
   cipCode?: string;
   programName?: string;
   credentialTitle?: string;
+  /** Backend-normalized alignment fields (see lib/academicAlignment.ts).
+   * `programCipCode` is the selected program's CIP from the backend, kept
+   * apart from `cipCode` (the matrix entry's own code). */
+  degreeLevel?: string;
+  programCipCode?: string;
+  stateCode?: string;
 }
 
 // Resolved, display-ready detail shown in the CollegeDetailsModal and cached on the compare page.

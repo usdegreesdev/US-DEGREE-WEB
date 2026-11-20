@@ -113,5 +113,8 @@ export function buildCollegeRow(entryId: string, ctx: BuildContext): College {
     cipCode,
     programName: programName || undefined,
     credentialTitle: credentialTitle || undefined,
+    degreeLevel: base?.degreeLevel || undefined,
+    programCipCode: base?.cipCode || undefined,
+    stateCode: base?.stateCode || undefined,
   };
 }
