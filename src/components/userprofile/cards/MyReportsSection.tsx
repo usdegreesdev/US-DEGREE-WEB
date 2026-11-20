@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import CollapseToggle, { useCollapsible } from "./CollapseToggle";
+
+import React, { useEffect, useRef, useState } from "react";
 import { Card, Table, Tag, Button, Empty, Alert, Space, message } from "antd";
 import { FileTextOutlined, DownloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
@@ -12,8 +14,12 @@ import {
   ReportSummary,
 } from "@/lib/auth/api";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
+import { consumeFreshReport } from "@/lib/freshReport";
 
 const PAGE_SIZE = 10;
+
+// How long a freshly generated report stays highlighted.
+const HIGHLIGHT_MS = 1000;
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
@@ -33,8 +39,16 @@ function pdfNameFor(report: ReportSummary): string {
   return `report-${report.reportId}.pdf`;
 }
 
-export default function MyReportsSection() {
+interface MyReportsSectionProps {
+  /** True for a recently created profile: the section starts expanded. */
+  isNewProfile?: boolean;
+}
+
+export default function MyReportsSection({
+  isNewProfile = false,
+}: MyReportsSectionProps) {
   const router = useRouter();
+  const { open, toggle } = useCollapsible("reports_section", isNewProfile);
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -43,6 +57,15 @@ export default function MyReportsSection() {
   const [retryToken, setRetryToken] = useState(0);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [emailingId, setEmailingId] = useState<string | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     (async () => {
@@ -52,6 +75,24 @@ export default function MyReportsSection() {
         const data = await fetchReports(page, PAGE_SIZE);
         setReports(data.reports);
         setTotal(data.total);
+        // Compare just generated a report: flash that row (or the newest one)
+        // for a moment so the user sees where it landed.
+        const fresh = page === 1 ? consumeFreshReport() : null;
+        if (fresh && data.reports.length > 0) {
+          const target =
+            data.reports.find((r) => r.reportId === fresh) ??
+            data.reports.reduce((a, b) =>
+              new Date(b.createdAt).getTime() > new Date(a.createdAt).getTime()
+                ? b
+                : a,
+            );
+          setHighlightId(target.reportId);
+          if (highlightTimer.current) clearTimeout(highlightTimer.current);
+          highlightTimer.current = setTimeout(
+            () => setHighlightId(null),
+            HIGHLIGHT_MS,
+          );
+        }
       } catch (err) {
         console.error("Failed to load report history:", err);
         setError("Could not load your reports. Please try again.");
@@ -189,6 +230,8 @@ export default function MyReportsSection() {
           <span className="font-bold">My Reports</span>
         </div>
       }
+      extra={<CollapseToggle open={open} onToggle={toggle} label="My Reports" />}
+      styles={{ body: open ? undefined : { display: "none" } }}
       variant="borderless"
       className="shadow-md rounded-2xl border border-neutral-100"
     >
@@ -213,6 +256,11 @@ export default function MyReportsSection() {
           rowKey="reportId"
           columns={columns}
           dataSource={reports}
+          rowClassName={(record) =>
+            record.reportId === highlightId
+              ? "[&>td]:!bg-blue-100 [&>td:first-child]:border-l-4 [&>td:first-child]:border-l-blue-500"
+              : "[&>td]:transition-colors [&>td]:duration-500"
+          }
           loading={loading}
           scroll={{ x: 850 }}
           locale={{

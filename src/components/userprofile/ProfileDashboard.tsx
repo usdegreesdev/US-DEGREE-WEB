@@ -27,6 +27,7 @@ import { useProfileDashboard } from "./useProfileDashboard";
 import {
   emptyProfile,
   isProfileEmpty,
+  isRecentlyCreated,
   mergeProfile,
   type ProfileAuthUser,
 } from "./profileUtils";
@@ -142,7 +143,7 @@ export default function ProfileDashboard({ authUser }: ProfileDashboardProps) {
 
       {/* Generated Reports */}
       <div>
-        <MyReportsSection />
+        <MyReportsSection isNewProfile={isRecentlyCreated(profile.createdDate)} />
       </div>
 
       {/* Danger Zone */}

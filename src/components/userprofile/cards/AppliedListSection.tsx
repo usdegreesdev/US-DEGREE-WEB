@@ -1,5 +1,7 @@
 "use client";
 
+import CollapseToggle, { useCollapsible } from "./CollapseToggle";
+
 import React, { useEffect, useState } from "react";
 import { Card, Table, Button, Empty, Alert, Space } from "antd";
 import { SendOutlined, LinkOutlined } from "@ant-design/icons";
@@ -38,6 +40,7 @@ function orDash(value: string | null | undefined) {
  */
 export default function AppliedListSection() {
   const router = useRouter();
+  const { open, toggle } = useCollapsible("applied_list_section", false);
   const [clicks, setClicks] = useState<ApplyClick[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -141,6 +144,8 @@ export default function AppliedListSection() {
           <span className="font-bold">Visited List ({total})</span>
         </div>
       }
+      extra={<CollapseToggle open={open} onToggle={toggle} label="Visited List" />}
+      styles={{ body: open ? undefined : { display: "none" } }}
       variant="borderless"
       className="shadow-md rounded-2xl border border-neutral-100 h-full"
     >

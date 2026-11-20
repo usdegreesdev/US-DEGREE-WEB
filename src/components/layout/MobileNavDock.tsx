@@ -208,6 +208,8 @@ export default function MobileNavDock({ onOpenAuthModal }: MobileNavDockProps) {
       if (pathname === "/profile") {
         e.preventDefault();
         window.history.pushState(null, "", "/profile#saved_colleges_section");
+        // pushState fires no hashchange; let the section open itself.
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
         setCurrentHash("#saved_colleges_section");
         document
           .getElementById("saved_colleges_section")

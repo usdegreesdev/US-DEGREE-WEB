@@ -1,5 +1,7 @@
 "use client";
 
+import CollapseToggle, { useCollapsible } from "./CollapseToggle";
+
 import React from "react";
 import { formatPercentOrNotPublished } from "@/lib/university/outcomeFormat";
 import { useRouter } from "next/navigation";
@@ -39,6 +41,8 @@ import {
 } from "../../search/useSavedColleges";
 import type { SavedCollege } from "../../../lib/auth/api";
 import EarningsMethodBadge from "../../common/EarningsMethodBadge";
+import { NOT_PUBLISHED } from "@/lib/notPublished";
+import { notPublishedReason } from "@/lib/university/stickerPrice";
 
 interface CollegeMatchesSectionProps {
   matches: CollegeMatch[];
@@ -56,6 +60,7 @@ export default function CollegeMatchesSection({
   loading,
 }: CollegeMatchesSectionProps) {
   const router = useRouter();
+  const { open, toggle } = useCollapsible("college_matches_section", true);
 
   // Selected-for-comparison entries, from the single shared matrix store. Kept
   // in sync with selections made anywhere (search cards, university page,
@@ -153,10 +158,15 @@ export default function CollegeMatchesSection({
       state: match.state,
       degree: match.programTitle,
       type: match.isPrivate ? "Private" : "Public",
-      admissionRate: fmtPercent(match.acceptanceRate),
-      tuition: fmtMoney(match.tuition),
-      avgSalary: fmtMoney(match.medianSalary1yr),
     });
+    // Only pass figures we actually have: the details page prefers a URL value
+    // over its own API data, so an "N/A" here would hide a real number there.
+    if (match.acceptanceRate !== null)
+      params.set("admissionRate", fmtPercent(match.acceptanceRate));
+    if (match.inStateSticker?.published)
+      params.set("tuition", fmtMoney(match.inStateSticker.total));
+    if (match.medianSalary1yr !== null)
+      params.set("avgSalary", fmtMoney(match.medianSalary1yr));
     router.push(`/university/${match.id}?${params.toString()}`);
   };
 
@@ -184,6 +194,8 @@ export default function CollegeMatchesSection({
           </div>
         </div>
       }
+      extra={<CollapseToggle open={open} onToggle={toggle} label="My Intelligent College Matches" />}
+      styles={{ body: open ? undefined : { display: "none" } }}
       variant="borderless"
       className="shadow-md rounded-2xl border border-neutral-100 bg-linear-to-b from-white to-blue-50/10"
     >
@@ -198,194 +210,204 @@ export default function CollegeMatchesSection({
           description="Add your target states and majors to see matched colleges."
         />
       ) : (
-        <Row gutter={[20, 20]}>
+        <Row gutter={[16, 16]}>
           {matches.map((match) => {
             const isSaved = savedIds.includes(match.unitid);
             const isCompared = isCollegeCompared(match.id);
+            const location =
+              match.city && match.state
+                ? `${match.city}, ${match.state}`
+                : match.city || match.state || "";
+            const sticker = match.inStateSticker;
 
             return (
-              <Col xs={24} sm={12} md={12} lg={8} xl={6} key={match.id}>
+              <Col xs={24} sm={12} lg={8} xl={6} key={match.id}>
                 <Card
                   variant="outlined"
                   hoverable
-                  className="rounded-2xl h-full overflow-hidden border-neutral-150 shadow-xs flex flex-col justify-between"
+                  className="rounded-2xl h-full overflow-hidden border-neutral-150 shadow-xs"
                   styles={{
                     body: {
-                      padding: "0",
+                      padding: 0,
                       display: "flex",
                       flexDirection: "column",
-                      justifyContent: "space-between",
                       height: "100%",
                     },
                   }}
                 >
-                  <div>
-                    {/* Brand accent bar (on-theme, replaces the heavy banner) */}
-                    <div className="h-1.5 bg-linear-to-r from-[#3b5bdb] to-[#2b55ff]" />
-
-                    <div className="px-4 pt-3.5 pb-1 space-y-3">
-                      {/* School name + location directly beneath it */}
-                      <div>
-                        <div className="flex items-start justify-between gap-2 min-h-[2.5rem]">
-                          <h4 className="text-sm font-extrabold text-neutral-800 line-clamp-2 leading-snug flex-1">
-                            {match.name}
-                          </h4>
-                          <Tag
-                            color={match.isPrivate ? "purple" : "blue"}
-                            style={{ borderRadius: "6px", margin: 0 }}
-                            className="text-[10px] font-bold uppercase tracking-wider shrink-0 self-start"
-                          >
-                            {match.isPrivate ? "Private" : "Public"}
-                          </Tag>
-                        </div>
-                        <p className="text-xs text-neutral-500 flex items-center gap-1.5 mt-0.5 font-medium">
-                          <GlobalOutlined className="text-[#3b5bdb]" />
-                          {match.city && match.state
-                            ? `${match.city}, ${match.state}`
-                            : match.city || match.state || "—"}
-                        </p>
-                      </div>
-
-                      {/* Matched program + degree level (custom pills so long
-                          program names wrap inside the card instead of clipping) */}
-                      {(match.programTitle || match.degreeLevel) && (
-                        <div className="space-y-1.5">
-                          {match.programTitle && (
-                            <div className="flex items-start gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-2 py-1">
-                              <ReadOutlined className="mt-0.5 shrink-0" />
-                              <span className="break-words leading-snug">
-                                {match.programTitle}
-                              </span>
-                            </div>
-                          )}
-                          {match.degreeLevel && (
-                            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
-                              <TrophyOutlined className="shrink-0" />
-                              <span>{match.degreeLevel}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Stats: tuition, acceptance, graduation, retention, 1-yr salary */}
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        {(() => {
-                          // Prefer listed tuition; when a program has none, fall
-                          // back to the sticker price (Average Annual Cost of
-                          // Attendance) so the tile isn't left as "N/A".
-                          const hasTuition = match.tuition !== null;
-                          const costValue = hasTuition
-                            ? match.tuition
-                            : match.costOfAttendance;
-                          const costLabel = hasTuition
-                            ? "Tuition"
-                            : "Avg. Annual Cost";
-                          return (
-                            <div className="bg-emerald-50 rounded-lg px-2.5 py-2">
-                              <span className="text-[10px] text-emerald-600/80 font-semibold block">
-                                {costLabel}
-                              </span>
-                              <span className="font-bold text-emerald-700">
-                                {fmtMoney(costValue)}
-                                {costValue !== null && "/yr"}
-                              </span>
-                            </div>
-                          );
-                        })()}
-                        <div className="bg-blue-50 rounded-lg px-2.5 py-2">
-                          <span className="text-[10px] text-blue-600/80 font-semibold block">
-                            Acceptance Rate
-                          </span>
-                          <span className="font-bold text-blue-700">
-                            {fmtPercent(match.acceptanceRate)}
-                          </span>
-                        </div>
-                        <div className="bg-violet-50 rounded-lg px-2.5 py-2">
-                          <span className="text-[10px] text-violet-600/80 font-semibold block">
-                            Graduation Rate
-                          </span>
-                          <span className="font-bold text-violet-700">
-                            {fmtPercent(match.graduationRate)}
-                          </span>
-                        </div>
-                        <div className="bg-amber-50 rounded-lg px-2.5 py-2">
-                          <span className="text-[10px] text-amber-600/80 font-semibold block">
-                            First-year retention
-                          </span>
-                          <span className="font-bold text-amber-700">
-                            {formatPercentOrNotPublished(match.retentionRate, 1)}
-                          </span>
-                        </div>
-                        <div className="bg-teal-50 rounded-lg px-2.5 py-2 col-span-2">
-                          <span className="flex items-center gap-1 text-[10px] text-teal-600/80 font-semibold">
-                            1-Year Median Salary
-                            {match.medianSalary1yrMethod && (
-                              <EarningsMethodBadge
-                                method={match.medianSalary1yrMethod}
-                              />
-                            )}
-                          </span>
-                          <span className="font-bold text-teal-700">
-                            {fmtMoney(match.medianSalary1yr)}
-                            {match.medianSalary1yr !== null && "/yr"}
-                          </span>
-                        </div>
-                      </div>
+                  {/* Header: name, location, ownership */}
+                  <div className="px-4 pt-3.5 pb-3 bg-linear-to-br from-blue-50/80 to-white border-b border-neutral-100">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4
+                        className="text-sm font-extrabold text-neutral-800 line-clamp-2 leading-snug flex-1 min-h-[2.5rem]"
+                        title={match.name}
+                      >
+                        {match.name}
+                      </h4>
+                      <Tag
+                        color={match.isPrivate ? "purple" : "blue"}
+                        style={{ borderRadius: "6px", margin: 0 }}
+                        className="text-[10px] font-bold uppercase tracking-wider shrink-0"
+                      >
+                        {match.isPrivate ? "Private" : "Public"}
+                      </Tag>
                     </div>
+                    {location && (
+                      <p className="text-xs text-neutral-500 flex items-center gap-1.5 mt-0.5 font-medium">
+                        <GlobalOutlined className="text-[#3b5bdb]" />
+                        {location}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Actions: quick view + compare + save (unchanged behaviour) */}
-                  <div className="px-4 pt-3 pb-4 mt-1 border-t border-neutral-100 flex items-center justify-between gap-2">
-                    <Button
-                      type="text"
-                      onClick={() => goToDetails(match)}
-                      className="text-xs font-semibold hover:text-blue-600 px-0 flex items-center gap-1"
-                    >
-                      Quick Review Detail →
-                    </Button>
+                  <div className="px-4 py-3 flex-1 flex flex-col gap-3">
+                    {/* Matched program + degree level */}
+                    {(match.programTitle || match.degreeLevel) && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {match.programTitle && (
+                          <span className="inline-flex items-start gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-2 py-1">
+                            <ReadOutlined className="mt-0.5 shrink-0" />
+                            <span className="break-words leading-snug">
+                              {match.programTitle}
+                            </span>
+                          </span>
+                        )}
+                        {match.degreeLevel && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
+                            <TrophyOutlined className="shrink-0" />
+                            {match.degreeLevel}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
-                    <div className="flex gap-2">
-                      <Tooltip
-                        title={
+                    {/* Hero figure: in-state on-campus sticker price — the same
+                        total the Tuition & Costs tab shows. */}
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5">
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700/80 block">
+                        In-State Sticker Price
+                      </span>
+                      {sticker === undefined ? (
+                        <span className="text-sm font-semibold text-emerald-700/60">
+                          Loading…
+                        </span>
+                      ) : sticker?.published ? (
+                        <span className="text-xl font-extrabold text-emerald-700 leading-tight">
+                          {fmtMoney(sticker.total)}
+                          <span className="text-xs font-semibold text-emerald-700/70">
+                            {" "}
+                            /yr
+                          </span>
+                        </span>
+                      ) : (
+                        <Tooltip
+                          title={notPublishedReason(sticker?.missing ?? [])}
+                        >
+                          <span className="text-sm font-semibold text-emerald-700/80 cursor-help">
+                            {NOT_PUBLISHED}
+                          </span>
+                        </Tooltip>
+                      )}
+                    </div>
+
+                    {/* Secondary metrics */}
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-xs m-0">
+                      <div>
+                        <dt className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+                          Acceptance
+                        </dt>
+                        <dd className="m-0 font-bold text-neutral-800">
+                          {fmtPercent(match.acceptanceRate)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+                          Graduation
+                        </dt>
+                        <dd className="m-0 font-bold text-neutral-800">
+                          {fmtPercent(match.graduationRate)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+                          1st-yr retention
+                        </dt>
+                        <dd className="m-0 font-bold text-neutral-800">
+                          {formatPercentOrNotPublished(match.retentionRate, 1)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-neutral-400 font-semibold">
+                          1-yr salary
+                          {match.medianSalary1yrMethod && (
+                            <EarningsMethodBadge
+                              method={match.medianSalary1yrMethod}
+                            />
+                          )}
+                        </dt>
+                        <dd className="m-0 font-bold text-neutral-800">
+                          {fmtMoney(match.medianSalary1yr)}
+                          {match.medianSalary1yr !== null && "/yr"}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="px-4 py-3 border-t border-neutral-100 flex items-center gap-2">
+                    <Button
+                      type="primary"
+                      ghost
+                      size="small"
+                      onClick={() => goToDetails(match)}
+                      className="flex-1 font-semibold"
+                      style={{ borderRadius: "6px" }}
+                    >
+                      View details
+                    </Button>
+                    <Tooltip
+                      title={
+                        isCompared
+                          ? "Remove from comparison"
+                          : "Add to comparison block"
+                      }
+                    >
+                      <Button
+                        type={isCompared ? "primary" : "default"}
+                        ghost={isCompared}
+                        icon={<SyncOutlined spin={isCompared} />}
+                        aria-label={
                           isCompared
                             ? "Remove from comparison"
-                            : "Add to comparison block"
+                            : "Add to comparison"
                         }
-                      >
-                        <Button
-                          type={isCompared ? "primary" : "default"}
-                          ghost={isCompared}
-                          icon={<SyncOutlined spin={isCompared} />}
-                          onClick={() => toggleCompare(match)}
-                          className={
-                            isCompared
-                              ? ""
-                              : "border-neutral-200 text-neutral-400"
-                          }
-                          size="small"
-                          shape="circle"
-                        />
-                      </Tooltip>
-
-                      <Tooltip
-                        title={
-                          isSaved
-                            ? "Already in saved colleges"
-                            : "Save this college"
+                        onClick={() => toggleCompare(match)}
+                        className={
+                          isCompared ? "" : "border-neutral-200 text-neutral-400"
                         }
-                      >
-                        <Button
-                          danger={isSaved}
-                          icon={isSaved ? <HeartFilled /> : <HeartOutlined />}
-                          onClick={() => toggleSave(match)}
-                          className={
-                            isSaved ? "" : "border-neutral-200 text-neutral-400"
-                          }
-                          size="small"
-                          shape="circle"
-                        />
-                      </Tooltip>
-                    </div>
+                        size="small"
+                        shape="circle"
+                      />
+                    </Tooltip>
+                    <Tooltip
+                      title={
+                        isSaved
+                          ? "Already in saved colleges"
+                          : "Save this college"
+                      }
+                    >
+                      <Button
+                        danger={isSaved}
+                        icon={isSaved ? <HeartFilled /> : <HeartOutlined />}
+                        aria-label={isSaved ? "Saved" : "Save college"}
+                        onClick={() => toggleSave(match)}
+                        className={
+                          isSaved ? "" : "border-neutral-200 text-neutral-400"
+                        }
+                        size="small"
+                        shape="circle"
+                      />
+                    </Tooltip>
                   </div>
                 </Card>
               </Col>

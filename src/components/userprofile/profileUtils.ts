@@ -16,6 +16,15 @@ export interface ProfileAuthUser {
  * Formats an ISO date string into a friendly localized date string.
  * Example: "2026-08-13T10:00:00Z" -> "August 13, 2026"
  */
+/**
+ * True when a display date (as produced by formatDbDate) is within the last
+ * `days` days. Unparseable/empty -> false.
+ */
+export function isRecentlyCreated(createdDate: string, days = 7): boolean {
+  const t = new Date(createdDate).getTime();
+  return !Number.isNaN(t) && Date.now() - t <= days * 24 * 60 * 60 * 1000;
+}
+
 export function formatDbDate(
   value: string | null | undefined,
   fallback: string,

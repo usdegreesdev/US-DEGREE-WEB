@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { emptyProfile, mergeProfile } from "@/components/userprofile/ProfileDashboard";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { toSafeHttpUrl } from "@/lib/url/httpUrl";
+import { markFreshReport } from "@/lib/freshReport";
 import { fetchStates, type StateOption } from "@/lib/referenceData";
 import {
   checkAlignment,
@@ -329,6 +330,7 @@ export default function CompareHeader({
       if (isMounted.current) {
         const safePdfUrl = toSafeHttpUrl(result.pdfUrl);
         if (result.reportId) {
+          markFreshReport(result.reportId);
           router.push("/profile#reports_section");
         } else if (safePdfUrl) {
           window.open(safePdfUrl, "_blank", "noopener,noreferrer");

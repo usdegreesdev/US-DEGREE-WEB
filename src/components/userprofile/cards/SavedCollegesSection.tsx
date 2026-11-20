@@ -1,5 +1,7 @@
 "use client";
 
+import CollapseToggle, { useCollapsible } from "./CollapseToggle";
+
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -109,6 +111,7 @@ export default function SavedCollegesSection({
   onViewChange,
 }: SavedCollegesSectionProps) {
   const router = useRouter();
+  const { open, toggle } = useCollapsible("saved_colleges_section", false);
   const [colleges, setColleges] = useState<SavedCollege[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -223,6 +226,8 @@ export default function SavedCollegesSection({
           />
         </div>
       }
+      extra={<CollapseToggle open={open} onToggle={toggle} label="Saved Colleges" />}
+      styles={{ body: open ? undefined : { display: "none" } }}
       variant="borderless"
       className="shadow-md rounded-2xl border border-neutral-100"
     >
@@ -240,92 +245,90 @@ export default function SavedCollegesSection({
           }
         />
       ) : view === "Grid" ? (
-        /* Grid View mode: fixed 2-column layout (2x5 for a full 10-entry
-           list) on sm+ screens, single column on mobile. Capped to MAX_SAVED
+        /* Grid View mode: 3 cards per row on sm+ screens, single
+           column on mobile. Capped to MAX_SAVED
            entries, so once the list is full it scrolls instead of growing
            the page indefinitely — height scales down on smaller screens. */
         <Row
-          gutter={[20, 20]}
-          className="max-h-[70vh] sm:max-h-[640px] overflow-y-auto pr-1 -mr-1"
+          gutter={[12, 12]}
+          className="max-h-[70vh] sm:max-h-[560px] overflow-y-auto pr-1 -mr-1"
         >
           {colleges.map((uni) => {
             return (
-              <Col xs={24} sm={12} key={uni.unitid}>
+              <Col xs={24} sm={8} key={uni.unitid}>
                 <Card
                   hoverable
                   variant="outlined"
-                  className="overflow-hidden rounded-2xl h-full border-neutral-150 shadow-xs flex flex-col justify-between"
-                  styles={{
-                    body: {
-                      padding: "16px",
-                      flex: "1",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                    },
-                  }}
+                  className="overflow-hidden rounded-xl h-full border-neutral-150 shadow-xs"
+                  styles={{ body: { padding: "10px 12px" } }}
                 >
-                  <div>
-                    <h4 className="text-sm font-extrabold text-neutral-800 tracking-tight leading-snug line-clamp-1">
-                      {uni.name}
-                    </h4>
-                    <p className="text-xs text-neutral-400 flex items-center gap-1.5 mt-0.5 font-medium">
-                      <GlobalOutlined />
-                      {uni.location}
-                    </p>
-                    {uni.programName && (
-                      <p className="text-xs text-neutral-500 mt-1 font-semibold line-clamp-1">
-                        {uni.programName}
-                        {uni.credentialTitle && (
-                          <span className="text-neutral-400 font-medium">
-                            {" "}
-                            &middot; {uni.credentialTitle}
-                          </span>
-                        )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h4
+                        className="text-sm font-extrabold text-neutral-800 tracking-tight leading-snug truncate"
+                        title={uni.name}
+                      >
+                        {uni.name}
+                      </h4>
+                      <p className="text-[11px] text-neutral-400 flex items-center gap-1 font-medium truncate">
+                        <GlobalOutlined />
+                        {uni.location}
                       </p>
-                    )}
-
-                    <div className="bg-neutral-50 rounded-xl p-2.5 mt-3 space-y-1.5 text-xs text-neutral-600">
-                      <div className="flex justify-between">
-                        <span className="text-neutral-400">
-                          Avg. Annual Cost:
-                        </span>
-                        <span className="font-semibold text-neutral-700">
-                          {formatTuition(uni.tuitionFee)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-neutral-400">
-                          Acceptance Rate:
-                        </span>
-                        <span className="font-semibold text-neutral-700">
-                          {formatRate(uni.acceptanceRate)}
-                        </span>
-                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex gap-2 mt-4 pt-3 border-t border-neutral-100 w-full">
-                    <Button
-                      type="primary"
-                      ghost
-                      size="small"
-                      loading={navigatingId === String(uni.unitid)}
-                      onClick={() => handleViewDetails(uni)}
-                      style={{ flex: "1", borderRadius: "6px" }}
-                    >
-                      View details
-                    </Button>
                     <Button
                       danger
                       type="text"
                       size="small"
+                      aria-label={`Remove ${uni.name}`}
                       loading={removing === String(uni.unitid)}
                       icon={<DeleteOutlined />}
                       onClick={() => handleRemove(uni.unitid, uni.name)}
-                      style={{ borderRadius: "6px" }}
+                      className="-mr-1 -mt-0.5 shrink-0"
                     />
                   </div>
+
+                  {uni.programName && (
+                    <p
+                      className="text-xs text-neutral-500 mt-1 font-semibold truncate"
+                      title={uni.programName}
+                    >
+                      {uni.programName}
+                      {uni.credentialTitle && (
+                        <span className="text-neutral-400 font-medium">
+                          {" "}
+                          &middot; {uni.credentialTitle}
+                        </span>
+                      )}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 mt-2 text-xs">
+                    <span className="text-neutral-400">
+                     Average Cost{" "}
+                      <b className="font-semibold text-neutral-700">
+                        {formatTuition(uni.tuitionFee)}
+                      </b>
+                    </span>
+                    <span className="text-neutral-400">
+                      Acceptence{" "}
+                      <b className="font-semibold text-neutral-700">
+                        {formatRate(uni.acceptanceRate)}
+                      </b>
+                    </span>
+                  </div>
+
+                  <Button
+                    type="primary"
+                    ghost
+                    size="small"
+                    block
+                    loading={navigatingId === String(uni.unitid)}
+                    onClick={() => handleViewDetails(uni)}
+                    className="mt-2"
+                    style={{ borderRadius: "6px" }}
+                  >
+                    View details
+                  </Button>
                 </Card>
               </Col>
             );
@@ -334,14 +337,15 @@ export default function SavedCollegesSection({
       ) : (
         /* List View mode — plain rows (antd's List component is deprecated).
            Same scroll cap as the grid view once the saved list is full. */
-        <div className="flex flex-col max-h-[70vh] sm:max-h-[640px] overflow-y-auto pr-1 -mr-1">
+        <div className="flex flex-col max-h-[70vh] sm:max-h-[560px] overflow-y-auto pr-1 -mr-1">
           {colleges.map((uni) => {
             return (
               <div
                 key={uni.unitid}
-                className="flex flex-col sm:flex-row sm:items-center gap-3 py-4 px-4 hover:bg-neutral-50 rounded-xl border-b border-neutral-100 transition-colors"
+                className="flex items-center gap-3 py-2 px-3 hover:bg-neutral-50 rounded-lg border-b border-neutral-100 transition-colors"
               >
                 <Avatar
+                  size="small"
                   style={{ backgroundColor: "#1890ff", fontWeight: "bold" }}
                   className="shrink-0"
                 >
@@ -349,35 +353,41 @@ export default function SavedCollegesSection({
                 </Avatar>
 
                 <div className="min-w-0 flex-1">
-                  <span className="font-extrabold text-neutral-800 block">
+                  <span
+                    className="font-extrabold text-sm text-neutral-800 block truncate"
+                    title={uni.name}
+                  >
                     {uni.name}
                   </span>
-                  {uni.programName && (
-                    <span className="text-xs text-neutral-500 font-semibold block">
-                      {uni.programName}
-                      {uni.credentialTitle && (
-                        <span className="text-neutral-400 font-medium">
-                          {" "}
-                          &middot; {uni.credentialTitle}
-                        </span>
-                      )}
-                    </span>
-                  )}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-neutral-500 pt-0.5">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-neutral-500">
                     <span className="flex items-center gap-1">
                       <GlobalOutlined />
                       {uni.location}
                     </span>
+                    {uni.programName && (
+                      <>
+                        <span>•</span>
+                        <span className="font-semibold">
+                          {uni.programName}
+                          {uni.credentialTitle && (
+                            <span className="text-neutral-400 font-medium">
+                              {" "}
+                              &middot; {uni.credentialTitle}
+                            </span>
+                          )}
+                        </span>
+                      </>
+                    )}
                     <span>•</span>
                     <span>
-                      Avg. Annual Cost:{" "}
+                      Cost{" "}
                       <b className="text-neutral-700">
                         {formatTuition(uni.tuitionFee)}
                       </b>
                     </span>
                     <span>•</span>
                     <span>
-                      Acceptance Rate:{" "}
+                      Accept{" "}
                       <b className="text-neutral-700">
                         {formatRate(uni.acceptanceRate)}
                       </b>
@@ -385,9 +395,10 @@ export default function SavedCollegesSection({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                <div className="flex items-center shrink-0">
                   <Button
                     type="link"
+                    size="small"
                     loading={navigatingId === String(uni.unitid)}
                     onClick={() => handleViewDetails(uni)}
                     style={{ fontWeight: 600 }}
@@ -397,12 +408,13 @@ export default function SavedCollegesSection({
                   <Button
                     type="text"
                     danger
+                    size="small"
+                    aria-label={`Remove ${uni.name}`}
+                    title="Remove from list"
                     loading={removing === String(uni.unitid)}
                     icon={<DeleteOutlined />}
                     onClick={() => handleRemove(uni.unitid, uni.name)}
-                  >
-                    Remove From list
-                  </Button>
+                  />
                 </div>
               </div>
             );

@@ -23,6 +23,10 @@ import { EarningsFillMethod } from "@/types/earningsMethod";
 import { getProgramSearchTerm } from "../../data/profileOptions";
 import { retentionToPercent } from "@/lib/university/outcomeFormat";
 import { toPercent } from "@/lib/fieldScale";
+import {
+  inStateOnCampusSticker,
+  type StickerTotal,
+} from "@/lib/university/stickerPrice";
 
 /** A single matched college, ready to render. Rates are percentages (0–100). */
 export interface CollegeMatch {
@@ -38,6 +42,10 @@ export interface CollegeMatch {
   isPrivate: boolean;
   tuition: number | null; // in-state tuition, $/yr
   costOfAttendance: number | null; // sticker_price_by_api — avg annual cost, $/yr
+  /** In-state on-campus sticker price (tuition + room & board + books + other),
+   * exactly as the Tuition & Costs tab sums it. undefined = not loaded yet;
+   * null = the tuition lookup failed. */
+  inStateSticker?: StickerTotal | null;
   acceptanceRate: number | null; // %
   graduationRate: number | null; // %
   retentionRate: number | null; // first-year retention, 0–100 %
@@ -280,6 +288,7 @@ export function useCollegeMatches(profile: StudentProfile): {
               let medianSalary1yr: number | null = null;
               let medianSalary1yrMethod: EarningsFillMethod | null = null;
               let costOfAttendance: number | null = null;
+              let inStateSticker: StickerTotal | null = null;
 
               if (ovRes.ok) {
                 const ov = await ovRes.json();
@@ -311,6 +320,14 @@ export function useCollegeMatches(profile: StudentProfile): {
                 // Cost of Attendance" — used as the fallback when a program has
                 // no listed tuition.
                 costOfAttendance = toNum(tui?.tuition?.sticker_price_by_api);
+                // Same four components, same sum as TuitionCostsSection's
+                // "In-State On-Campus sticker price".
+                inStateSticker = inStateOnCampusSticker({
+                  tuition_in_state: tui?.tuition?.tuition_in_state,
+                  roomboard_oncampus: tui?.housing?.roomboard_oncampus,
+                  booksupply: tui?.tuition?.booksupply,
+                  otherexpense_oncampus: tui?.expenses?.otherexpense_oncampus,
+                });
               }
 
               return {
@@ -320,9 +337,10 @@ export function useCollegeMatches(profile: StudentProfile): {
                 medianSalary1yr,
                 medianSalary1yrMethod,
                 costOfAttendance,
+                inStateSticker,
               };
             } catch {
-              return m;
+              return { ...m, inStateSticker: null };
             }
           }),
         );
