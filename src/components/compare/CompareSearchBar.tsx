@@ -12,6 +12,16 @@ import { parseEntryId } from "./compareEntryIds";
 
 const MAX_COMPARE = 5;
 
+/** Lowercase, strip accents/punctuation, collapse whitespace. */
+function normalizeSearch(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
 // Colleges are a typeahead: the backend caps a page (20 anonymous / 50 signed
 // in), so the list is narrowed by name rather than paged. Below this many
 // characters the default first page is shown.
@@ -64,16 +74,44 @@ export default function CompareSearchBar({
     useState<ProgramByCredential | null>(null);
   const programLoadRef = useRef(0);
 
+  // Every typed word must appear in the title (any order, partial words ok),
+  // ranked: title starts with query > a word starts with it > anywhere.
   const programResults = useMemo(() => {
-    const q = programQuery.trim().toLowerCase();
-    return q
-      ? allPrograms.filter((p) => p.title.toLowerCase().includes(q))
-      : allPrograms;
+    const q = normalizeSearch(programQuery);
+    if (!q) return allPrograms;
+    const tokens = q.split(" ");
+    const scored: { p: ProgramByCredential; rank: number }[] = [];
+    for (const p of allPrograms) {
+      const title = normalizeSearch(p.title);
+      if (!tokens.every((t) => title.includes(t))) continue;
+      const rank = title.startsWith(q) ? 0 : title.includes(` ${q}`) ? 1 : 2;
+      scored.push({ p, rank });
+    }
+    return scored.sort((a, b) => a.rank - b.rank).map((x) => x.p);
   }, [allPrograms, programQuery]);
+
+  // Keep the chosen program listed even when the current search hides it,
+  // otherwise the Select would fall back to showing the raw cip code.
+  const programOptions = useMemo(() => {
+    const opts = programResults.map((p) => ({
+      value: p.cip_code,
+      label: p.title,
+    }));
+    if (
+      selectedProgram &&
+      !opts.some((o) => o.value === selectedProgram.cip_code)
+    ) {
+      opts.unshift({
+        value: selectedProgram.cip_code,
+        label: selectedProgram.title,
+      });
+    }
+    return opts;
+  }, [programResults, selectedProgram]);
 
   // Step 3: college typeahead, scoped to the chosen program's cip_code + the
   // credential level — the reverse of the compare page's old college-first flow.
-  const [, setCollegeQuery] = useState("");
+  const [collegeQuery, setCollegeQuery] = useState("");
   const [collegeResults, setCollegeResults] = useState<SchoolForProgram[]>([]);
   const [collegeTotal, setCollegeTotal] = useState<number | null>(null);
   const [isSearchingColleges, setIsSearchingColleges] = useState(false);
@@ -190,6 +228,13 @@ export default function CompareSearchBar({
     if (!prog || credentialLevel === null) return;
     void loadColleges(prog, credentialLevel);
   };
+
+  // Keep the chosen college listed even if a later search no longer returns it.
+  const collegeOptionSource =
+    selectedCollege &&
+    !collegeResults.some((c) => c.unitid === selectedCollege.unitid)
+      ? [selectedCollege, ...collegeResults]
+      : collegeResults;
 
   const handleFinalAdd = () => {
     if (!selectedCollege || !selectedProgram) return;
@@ -319,9 +364,14 @@ export default function CompareSearchBar({
                 disabled={!programEnabled}
                 value={selectedProgram?.cip_code ?? null}
                 filterOption={false}
+                searchValue={programQuery}
                 onSearch={setProgramQuery}
+                onBlur={() => setProgramQuery("")}
                 loading={isSearchingPrograms}
-                onChange={handleProgramChange}
+                onChange={(value) => {
+                  handleProgramChange(value);
+                  setProgramQuery("");
+                }}
                 notFoundContent={
                   isSearchingPrograms ? (
                     <Spin size="small" />
@@ -331,10 +381,7 @@ export default function CompareSearchBar({
                     </span>
                   )
                 }
-                options={programResults.map((p) => ({
-                  value: p.cip_code,
-                  label: p.title,
-                }))}
+                options={programOptions}
               />
               {allPrograms.length > 0 && (
                 <span className="block mt-1 text-[11px] text-gray-400">
@@ -374,7 +421,11 @@ export default function CompareSearchBar({
                 disabled={!collegeEnabled}
                 value={selectedCollege ? String(selectedCollege.unitid) : null}
                 filterOption={false}
+                searchValue={collegeQuery}
                 onSearch={handleCollegeSearch}
+                onBlur={() => {
+                  if (collegeQuery) handleCollegeSearch("");
+                }}
                 loading={isSearchingColleges}
                 suffixIcon={<Search className="w-3.5 h-3.5 text-gray-400" />}
                 onChange={(value) => {
@@ -382,6 +433,7 @@ export default function CompareSearchBar({
                     (c) => String(c.unitid) === value,
                   );
                   setSelectedCollege(college ?? null);
+                  if (collegeQuery) handleCollegeSearch("");
                 }}
                 notFoundContent={
                   isSearchingColleges ? (
@@ -392,7 +444,7 @@ export default function CompareSearchBar({
                     </span>
                   )
                 }
-                options={collegeResults.map((c) => {
+                options={collegeOptionSource.map((c) => {
                   const base =
                     c.city && c.state
                       ? `${c.school_name} (${c.city}, ${c.state})`

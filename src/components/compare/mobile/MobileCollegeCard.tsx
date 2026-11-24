@@ -30,7 +30,7 @@ export default function MobileCollegeCard({
       <div>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2.5 min-w-0 flex-1">
-            <CollegeAvatar name={college.name} size="md" />
+            <CollegeAvatar name={college.name} unitid={college.unitid} size="md" />
             <div className="min-w-0 flex-1">
               <h4
                 className="font-black text-slate-900 text-sm leading-snug hover:text-[#3F51B5] cursor-pointer transition-colors break-words"

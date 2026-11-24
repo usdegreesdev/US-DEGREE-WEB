@@ -69,7 +69,7 @@ export default function AcademicAlignmentModal({
         <div className="flex items-center gap-2 mb-1 pr-6">
           <Sparkles className="w-5 h-5 text-white shrink-0" />
           <h3 className="text-lg font-black text-white tracking-tight">
-            Your comparison is different from your profile
+            Your comparison is different from your profile prefrences
           </h3>
         </div>
         <p className="text-blue-100 text-xs font-medium">

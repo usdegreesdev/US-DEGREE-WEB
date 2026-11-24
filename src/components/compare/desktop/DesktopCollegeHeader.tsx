@@ -27,7 +27,7 @@ export default function DesktopCollegeHeader({
   onViewDetails,
 }: DesktopCollegeHeaderProps) {
   return (
-    <th className="p-4 md:p-8 relative min-w-[140px] md:min-w-[200px] sticky bg-[#FAFBFD] z-20">
+    <th className="p-3 md:p-4 lg:p-6 xl:p-8 align-top relative min-w-[140px] md:min-w-[200px] sticky bg-[#FAFBFD] z-20">
       {isRemoving && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
           <Spin size="small" />
@@ -52,14 +52,15 @@ export default function DesktopCollegeHeader({
         </Tooltip>
       </div>
 
-      <div className="flex flex-col items-center text-center pt-2">
-        <CollegeAvatar name={college.name} size="lg" />
+      <div className="flex flex-col items-center text-center pt-2 min-w-0">
+        <CollegeAvatar name={college.name} unitid={college.unitid} size="lg" />
 
         <h3
-          className="text-xs md:text-lg font-black text-slate-900 line-clamp-1 hover:text-[#3F51B5] cursor-pointer transition-colors"
+          title={college.name}
+          className="mt-3 text-xs sm:text-sm lg:text-base xl:text-lg font-black text-slate-900 leading-snug text-balance break-words hyphens-auto hover:text-[#3F51B5] cursor-pointer transition-colors"
           onClick={() => onViewDetails(college.id)}
         >
-          {college.shortName}
+          {college.name}
         </h3>
         <p className="text-[9px] md:text-xs text-gray-400 font-bold flex items-center gap-0.5 md:gap-1 mt-0.5 md:mt-1 justify-center">
           <MapPin className="w-2.5 h-2.5 md:w-3.5 md:h-3.5" />

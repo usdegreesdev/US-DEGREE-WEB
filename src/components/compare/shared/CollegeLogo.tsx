@@ -1,24 +1,32 @@
 "use client";
 
+import BaseCollegeLogo from "@/components/college/CollegeLogo";
+
 interface CollegeLogoProps {
   name: string;
+  /** IPEDS unitid — used to load the logo from the R2 bucket. */
+  unitid?: string | number | null;
   /** Pixel size of the square logo box. Defaults to 24 (used in mobile rows). */
   size?: number;
 }
 
 /**
- * Shows a colored square with the first letter of the college's name. Logo
- * images are not displayed here.
+ * Small square college logo (R2 image, colored initial as fallback), used in
+ * the mobile metric rows.
  */
-export default function CollegeLogo({ name, size = 24 }: CollegeLogoProps) {
+export default function CollegeLogo({ name, unitid, size = 24 }: CollegeLogoProps) {
   return (
     <div
-      className="bg-white border border-gray-100 rounded p-0.5 flex items-center justify-center shrink-0"
+      className="bg-white border border-gray-100 rounded p-0.5 shrink-0"
       style={{ width: size, height: size }}
     >
-      <div className="w-full h-full rounded bg-blue-50 flex items-center justify-center font-bold text-[#3F51B5] text-[10px] select-none">
-        {name ? name.trim().charAt(0).toUpperCase() : "U"}
-      </div>
+      <BaseCollegeLogo
+        unitid={unitid}
+        name={name}
+        sizes={`${size}px`}
+        className="w-full h-full rounded bg-blue-50 flex items-center justify-center"
+        textClassName="font-bold text-[#3F51B5] text-[10px] select-none"
+      />
     </div>
   );
 }

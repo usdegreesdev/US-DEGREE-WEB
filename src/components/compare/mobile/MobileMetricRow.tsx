@@ -18,12 +18,12 @@ export default function MobileMetricRow({ college, onViewDetails, children }: Mo
   return (
     <div className="py-2.5 flex items-center justify-between gap-2 text-xs">
       <div className="flex items-center gap-2 min-w-0">
-        <CollegeLogo name={college.name} />
+        <CollegeLogo name={college.name} unitid={college.unitid} />
         <span
-          className="font-bold text-slate-700 truncate hover:text-[#3F51B5] cursor-pointer transition-colors"
+          className="font-bold text-slate-700 break-words leading-snug hover:text-[#3F51B5] cursor-pointer transition-colors"
           onClick={() => onViewDetails(college.id)}
         >
-          {college.shortName}
+          {college.name || college.shortName}
         </span>
       </div>
       {children}
