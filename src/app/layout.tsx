@@ -1,19 +1,29 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { Lexend, Poppins } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import PopupConfig from "@/components/layout/PopupConfig";
 
-const lexend = Lexend({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+// Fonts are self-hosted (latin subset, from Google Fonts) so dev and builds
+// never need network access to fonts.googleapis.com.
+const lexend = localFont({
+  src: "./fonts/Lexend-Variable.woff2",
+  weight: "400 900",
+  style: "normal",
+  display: "swap",
   variable: "--font-lexend",
 });
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const poppins = localFont({
+  src: [
+    { path: "./fonts/Poppins-400.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Poppins-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Poppins-600.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/Poppins-700.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/Poppins-800.woff2", weight: "800", style: "normal" },
+  ],
+  display: "swap",
   variable: "--font-poppins",
 });
 
