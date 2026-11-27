@@ -72,8 +72,11 @@ export default function ConfirmReportModal({
                 </div>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-800 truncate leading-snug">
-                  {college.shortName || college.name}
+                <p
+                  className="text-sm font-bold text-slate-800 line-clamp-2 break-words leading-snug"
+                  title={college.name || college.shortName}
+                >
+                  {college.name || college.shortName}
                 </p>
                 <p className="text-[11px] text-gray-400 font-semibold flex items-center gap-1 truncate">
                   <MapPin className="w-3 h-3 shrink-0" />
