@@ -86,13 +86,11 @@ jobs:
         id: meta
         run: echo "release=$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      # The standalone server does not copy public/ or .next/static; add them,
-      # plus the PM2 config. No env files are ever included.
+      # `npm run build` already copies public/ and .next/static into the
+      # standalone bundle (see package.json); add the PM2 config here and
+      # verify the assets are present. No env files are ever included.
       - name: Assemble release bundle
         run: |
-          cp -r public .next/standalone/public
-          mkdir -p .next/standalone/.next
-          cp -r .next/static .next/standalone/.next/static
           cp deploy/ecosystem.config.cjs .next/standalone/ecosystem.config.cjs
           echo "$GITHUB_SHA" > .next/standalone/REVISION
           find .next/standalone -maxdepth 2 -name '.env*' -print -delete
