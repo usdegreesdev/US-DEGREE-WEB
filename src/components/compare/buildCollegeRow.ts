@@ -1,5 +1,9 @@
 import type { College } from "@/types/university/ComparisonTable";
-import { resolveSalaryValue, type SelectedCompareCollege } from "@/lib/auth/api";
+import {
+  resolveSalaryValue,
+  type EarningsAvgSalaryResolved,
+  type SelectedCompareCollege,
+} from "@/lib/auth/api";
 import { parseEntryId } from "./compareEntryIds";
 import type { EntryProgramInfo } from "./compareEntryIds";
 import type { RawUniversity, StoredDetail, UniOption } from "./compareCollegeTypes";
@@ -10,6 +14,28 @@ import { toSafeHttpUrl } from "@/lib/url/httpUrl";
 // every renderer in desktop/rows + mobile/sections that does `rate * 100`.
 function toFraction(percent: number | null | undefined): number | null {
   return percent === null || percent === undefined ? null : percent / 100;
+}
+
+type SalaryField = number | EarningsAvgSalaryResolved | null | undefined;
+
+/**
+ * Value + grad_cohort taken from the SAME source, so the cohort always
+ * describes the figure shown. The first source with a value wins. A bare
+ * number (school-wide aggregate) has no cohort. The '0000' placeholder
+ * (pooled/unknown cohort) is not a class year, so it is dropped.
+ */
+function resolveSalaryWithCohort(...sources: SalaryField[]): {
+  value: number | null;
+  cohort: string | null;
+} {
+  for (const src of sources) {
+    const value = resolveSalaryValue(src);
+    if (value === null) continue;
+    const raw = typeof src === "object" && src !== null ? src.cohort : null;
+    const cohort = raw && /^\d{4}$/.test(raw) && raw !== "0000" ? raw : null;
+    return { value, cohort };
+  }
+  return { value: null, cohort: null };
 }
 
 function deriveLogo(schoolUrl: string | null): string {
@@ -76,6 +102,11 @@ export function buildCollegeRow(entryId: string, ctx: BuildContext): College {
   const schoolUrl =
     base?.schoolUrl || matchedStored?.schoolUrl || programInfo?.schoolUrl || undefined;
 
+  const salary = resolveSalaryWithCohort(
+    selectedProgram?.earnings,
+    base?.outcomes?.avgSalary,
+  );
+
   ctx.cacheUniversity({
     unitid,
     school_name: name,
@@ -102,10 +133,8 @@ export function buildCollegeRow(entryId: string, ctx: BuildContext): College {
     satMin: base?.academics?.satRangeLow ?? null,
     satMax: base?.academics?.satRangeHigh ?? null,
     graduationRate: toFraction(base?.academics?.graduationRate),
-    medianSalary:
-      resolveSalaryValue(selectedProgram?.earnings) ??
-      resolveSalaryValue(base?.outcomes?.avgSalary) ??
-      null,
+    medianSalary: salary.value,
+    salaryCohort: salary.cohort,
     studentPopulation: base?.students?.size ?? null,
     image:
       "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=800&auto=format&fit=crop",

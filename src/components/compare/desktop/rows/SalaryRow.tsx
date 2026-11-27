@@ -3,6 +3,7 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { College } from "@/types/university/ComparisonTable";
 import { relativePercentDiff } from "../../shared/metrics";
+import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
 import DesktopRowLabel from "../DesktopRowLabel";
 
 interface SalaryRowProps {
@@ -15,7 +16,11 @@ interface SalaryRowProps {
 export default function SalaryRow({ colleges, averageSalary, highestSalaryId }: SalaryRowProps) {
   return (
     <tr className="hover:bg-slate-50/30 transition-colors">
-      <DesktopRowLabel title="Avg. Salary" subtitle="Average annual earnings for graduates" />
+      <DesktopRowLabel
+        title="Avg. Salary"
+        subtitle="Average annual earnings for graduates"
+        tooltip={DATA_SOURCE_DISCLAIMERS.compareAvgSalary}
+      />
       {colleges.map((college) => {
         const salary = college.medianSalary;
 
@@ -41,6 +46,12 @@ export default function SalaryRow({ colleges, averageSalary, highestSalaryId }: 
               >
                 ${salary.toLocaleString()}
               </span>
+
+              {college.salaryCohort && (
+                <span className="block text-gray-400 text-[8px] md:text-[10px] font-bold uppercase mt-0.5 md:mt-1">
+                  {college.salaryCohort} graduates
+                </span>
+              )}
 
               {colleges.length > 1 && diffPercent !== null && (
                 <div className="mt-1 md:mt-2 flex items-center gap-0.5 md:gap-1">

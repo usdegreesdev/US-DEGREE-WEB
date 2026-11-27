@@ -3,6 +3,7 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { College } from "@/types/university/ComparisonTable";
 import { relativePercentDiff } from "../../shared/metrics";
+import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
 import MobileSectionCard from "../MobileSectionCard";
 import MobileMetricRow from "../MobileMetricRow";
 
@@ -21,7 +22,11 @@ export default function SalarySection({
   highestSalaryId,
 }: SalarySectionProps) {
   return (
-    <MobileSectionCard title="Avg. Salary" subtitle="Average annual earnings for graduates">
+    <MobileSectionCard
+      title="Avg. Salary"
+      subtitle="Average annual earnings for graduates"
+      tooltip={DATA_SOURCE_DISCLAIMERS.compareAvgSalary}
+    >
       {colleges.map((college) => {
         const salary = college.medianSalary;
 
@@ -39,9 +44,16 @@ export default function SalarySection({
         return (
           <MobileMetricRow key={college.id} college={college} onViewDetails={onViewDetails}>
             <div className="flex items-center gap-2 shrink-0">
-              <span className={`font-mono font-bold ${isTop ? "text-[#3F51B5]" : "text-slate-900"}`}>
-                ${salary.toLocaleString()}
-              </span>
+              <div className="flex flex-col items-end">
+                <span className={`font-mono font-bold ${isTop ? "text-[#3F51B5]" : "text-slate-900"}`}>
+                  ${salary.toLocaleString()}
+                </span>
+                {college.salaryCohort && (
+                  <span className="font-mono text-gray-400 text-[8px] font-bold uppercase leading-tight">
+                    {college.salaryCohort} graduates
+                  </span>
+                )}
+              </div>
               {colleges.length > 1 && diffPercent !== null && (
                 <div>
                   {isTop ? (

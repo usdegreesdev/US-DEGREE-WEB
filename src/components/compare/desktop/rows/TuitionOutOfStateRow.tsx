@@ -3,6 +3,7 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { College } from "@/types/university/ComparisonTable";
 import { relativePercentDiff } from "../../shared/metrics";
+import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
 import DesktopRowLabel from "../DesktopRowLabel";
 
 interface TuitionOutOfStateRowProps {
@@ -22,6 +23,7 @@ export default function TuitionOutOfStateRow({
       <DesktopRowLabel
         title="Tuition (Out-of-State)"
         subtitle="National student baseline rate"
+        tooltip={DATA_SOURCE_DISCLAIMERS.compareTuitionOutOfState}
       />
       {colleges.map((college) => {
         const tuition = college.tuitionOutOfState;

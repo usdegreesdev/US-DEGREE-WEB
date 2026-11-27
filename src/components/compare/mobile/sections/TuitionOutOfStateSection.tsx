@@ -3,6 +3,7 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { College } from "@/types/university/ComparisonTable";
 import { relativePercentDiff } from "../../shared/metrics";
+import { DATA_SOURCE_DISCLAIMERS } from "@/constants/dataSourceDisclaimers";
 import MobileSectionCard from "../MobileSectionCard";
 import MobileMetricRow from "../MobileMetricRow";
 
@@ -21,7 +22,11 @@ export default function TuitionOutOfStateSection({
   lowestTuitionId,
 }: TuitionOutOfStateSectionProps) {
   return (
-    <MobileSectionCard title="Tuition (Out-of-State)" subtitle="National student baseline rate">
+    <MobileSectionCard
+      title="Tuition (Out-of-State)"
+      subtitle="National student baseline rate"
+      tooltip={DATA_SOURCE_DISCLAIMERS.compareTuitionOutOfState}
+    >
       {colleges.map((college) => {
         const tuition = college.tuitionOutOfState;
 

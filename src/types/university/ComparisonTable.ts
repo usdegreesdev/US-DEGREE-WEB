@@ -24,6 +24,9 @@ export interface College {
   satMax: number | null;
   graduationRate: number | null; // 0.0 to 1.0
   medianSalary: number | null;
+  /** grad_cohort year (e.g. "2016") of the exact row that supplied
+   * medianSalary. null when unknown, or for the '0000' placeholder cohort. */
+  salaryCohort?: string | null;
   studentPopulation: number | null;
   image: string;
   cipCode?: string;

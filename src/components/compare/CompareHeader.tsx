@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { message } from "antd";
+import { Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchProfile } from "@/lib/auth/api";
 import { College } from "@/types/university/ComparisonTable";
@@ -9,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { emptyProfile, mergeProfile } from "@/components/userprofile/ProfileDashboard";
 import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import AcademicAlignmentModal from "./AcademicAlignmentModal";
+import { programsDiffer } from "./shared/programFamilies";
 import GenerateReportButton from "./report/GenerateReportButton";
 import ConfirmReportModal from "./report/ConfirmReportModal";
 import ProfileWarningModal from "./report/ProfileWarningModal";
@@ -41,6 +43,10 @@ export default function CompareHeader({
     useReportGeneration(comparedIds, comparedColleges);
 
   const hasNoColleges = !comparedIds || comparedIds.length === 0;
+  const showProgramsDiffer = useMemo(
+    () => programsDiffer(comparedColleges),
+    [comparedColleges],
+  );
 
   const startReportGeneration = () => {
     setIsConfirmOpen(false);
@@ -123,6 +129,15 @@ export default function CompareHeader({
         <p className="text-gray-500 font-medium text-lg mt-2 tracking-tight">
           Compare academic metrics, annual tuition fees, and career outcomes.
         </p>
+        {showProgramsDiffer && (
+          <p
+            role="note"
+            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full"
+          >
+            <Info className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+            Programs differ between colleges. Compare Tuition and Salary only for similar majors.
+          </p>
+        )}
       </div>
 
       <GenerateReportButton
